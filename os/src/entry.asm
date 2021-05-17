@@ -18,7 +18,7 @@ _start:
 	la		sp, _stack
         
         # (0b11 << 11): the privilege level will be set to 3(machine mode) after mret
-        # (1 << 7): the machine mode interrupt-enable bit will 1 after mret
+        # (1 << 7): the machine mode interrupt-enable bit will be 1 after mret
 	li		t0, (0b11 << 11) | (1 << 7)
 	csrw	mstatus, t0
 

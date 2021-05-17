@@ -20,7 +20,7 @@ const UART_LCR: u64 = UART_BASE + 3;
 // Line status register
 const UART_LSR: u64 = UART_BASE + 5;
 
-pub fn uart_init() {
+pub fn init() {
     unsafe {
         let lcr = UART_LCR as *mut u8;
         let fcr = UART_FCR as *mut u8;
@@ -65,7 +65,7 @@ pub fn uart_put(c: u8) {
     unsafe {
         let lsr = UART_LSR as *mut u8;
         let thr = UART_THR as *mut u8;
-        
+
         // wait for transmit holding register is not full
         loop {
             match lsr.read_volatile() & 0x20 == 0 {
