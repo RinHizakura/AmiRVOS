@@ -15,7 +15,7 @@ _start:
 	addi	a0, a0, 8
 	bltu	a0, a1, 1b
 2:
-	la		sp, _stack
+	la		sp, _stack_end
         
         # (0b11 << 11): the privilege level will be set to 3(machine mode) after mret
         # (1 << 7): the machine mode interrupt-enable bit will be 1 after mret

@@ -28,10 +28,14 @@ SECTIONS
         *(.sbss .bss .bss.*)
     }
     _bss_end = .;
-    /* 64KB in .bss section is reserved for stack */
-    _stack = _bss_end + 0x10000;
+    /* 64KB is reserved for stack */
+    _stack_start = _bss_end;
+    _stack_end = _stack_start + 0x10000;
     . = ALIGN(0x00001000);
+
+    /* heap starts right after the kernel stack */
     _kernel_end = .;
+    _heap_start = _kernel_end;
 }
 
 _kernel_size = _kernel_end - _kernel_start;
