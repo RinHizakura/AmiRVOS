@@ -7,6 +7,8 @@ OBJCOPY     := rust-objcopy --binary-architecture=riscv64
 
 .PHONY: build asm clean qemu
 
+all: build
+
 build:
 	cargo build
 
