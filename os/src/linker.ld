@@ -35,7 +35,4 @@ SECTIONS
 
     /* heap starts right after the kernel stack */
     _kernel_end = .;
-    _heap_start = _kernel_end;
 }
-
-_kernel_size = _kernel_end - _kernel_start;
