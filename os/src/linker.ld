@@ -33,6 +33,5 @@ SECTIONS
     _stack_end = _stack_start + 0x10000;
     . = ALIGN(0x00001000);
 
-    /* heap starts right after the kernel stack */
     _kernel_end = .;
 }

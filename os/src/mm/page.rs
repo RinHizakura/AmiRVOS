@@ -1,24 +1,10 @@
+use crate::config::{HIGH_MEMORY, LOW_MEMORY};
 use core::ptr::null_mut;
-
-extern "C" {
-    static KERNEL_END: usize;
-}
 
 // Page struct flag init with zero to represent a free page
 static mut PAGE_STRUCT: [Page; PAGE_ENTRY] = [Page { flags: 0 }; PAGE_ENTRY];
-
-// DRAM start from 0x80000000
-const DRAM_BASE: usize = 0x8000_0000;
-// Assuming that we have at least 128M RAM to be used
-const DRAM_SIZE: usize = 0x800_0000;
 // 4KB page
 const PAGE_SIZE: usize = 1 << 12;
-// The bottom memory address of HEAP to be accessed
-// - Warning: we naively assume our kernel size won't exceed 64 KB, this
-//   assumption help our code become cleaner
-const LOW_MEMORY: usize = 0x8000_0000 + 0x10000;
-// The top memory address of HEAP to be accessed
-const HIGH_MEMORY: usize = 0x8000_0000 + DRAM_SIZE;
 // Number of page entry availibled
 const PAGE_ENTRY: usize = (HIGH_MEMORY - LOW_MEMORY) / PAGE_SIZE;
 
@@ -32,10 +18,6 @@ impl Page {
         return (self.flags & 1) == 1;
     }
 
-    pub fn is_first(&self) -> bool {
-        return (self.flags & !1) != 0;
-    }
-
     pub fn set(&mut self) {
         self.flags = 1;
     }
@@ -47,13 +29,16 @@ impl Page {
 
 pub fn init() {
     unsafe {
+        extern "C" {
+            static KERNEL_START: usize;
+            static KERNEL_END: usize;
+        }
+
         assert!(KERNEL_END < LOW_MEMORY);
-        println!("{:X} {:X}", KERNEL_END, LOW_MEMORY);
+        info!("Kernel region: [{:X} {:X}]", KERNEL_START, KERNEL_END);
     }
 }
 
-/* FIXME: buddy allocator will be needed for better management as my future work
- */
 pub fn alloc(order: usize) -> *mut u8 {
     // only 2^n pages allocation is availible
     let pages = 1 << order;
@@ -111,4 +96,22 @@ pub fn free(ptr: *mut u8) {
             PAGE_STRUCT[i].clear();
         }
     }
+}
+
+pub fn test() {
+    // test the page allocation behavior
+    let a = alloc(0);
+    let b = alloc(0);
+    let c = alloc(0);
+
+    free(a);
+    let d = alloc(1);
+    free(b);
+    let e = alloc(1);
+
+    runtest!(a != e);
+
+    free(c);
+    free(d);
+    free(e);
 }
