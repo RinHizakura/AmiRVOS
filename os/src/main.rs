@@ -1,7 +1,7 @@
 #![no_std] // Disables all standard library
 #![no_main] // Disables emitting the main symbol
 #![feature(asm, global_asm, panic_info_message, alloc_error_handler)]
-#![feature(test)]
+#![feature(const_mut_refs)]
 
 global_asm!(include_str!("asm/entry.asm"));
 global_asm!(include_str!("asm/mem.asm"));

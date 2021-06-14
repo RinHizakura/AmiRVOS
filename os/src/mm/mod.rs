@@ -1,4 +1,5 @@
 mod kheap;
+mod linked_list_allocator;
 mod page;
 
 pub fn init() {

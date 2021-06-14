@@ -84,7 +84,7 @@ pub fn free(ptr: *mut u8) {
         let idx = (addr - LOW_MEMORY) / PAGE_SIZE;
         let order = (PAGE_STRUCT[idx].flags & !1) >> 1;
 
-        // makr sure the 'ptr' point to the first allocaed block
+        // make sure the 'ptr' point to the first allocaed block
         if !PAGE_STRUCT[idx].is_alloc() || order == 0 {
             return;
         }
