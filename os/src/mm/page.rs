@@ -109,7 +109,7 @@ pub fn test() {
     free(b);
     let e = alloc(1);
 
-    runtest!(a == e);
+    assert_eq!(a, e);
 
     free(c);
     free(d);

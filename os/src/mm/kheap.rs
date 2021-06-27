@@ -20,6 +20,29 @@ pub fn init() {
     }
 }
 
+pub fn test() {
+    use alloc::boxed::Box;
+
+    HEAP_ALLOCATOR.lock().check_order();
+
+    {
+        let _a = Box::new("Everyone");
+        let _b = Box::new("know");
+        let c = Box::new("that");
+        let d = Box::new("Amita");
+        let e = Box::new("is");
+        let _f = Box::new("RinHizakura's");
+        let _g = Box::new("wife");
+
+        drop(c);
+        drop(e);
+        drop(d);
+        HEAP_ALLOCATOR.lock().check_order();
+    }
+
+    HEAP_ALLOCATOR.lock().check_order();
+}
+
 // A wrapper around spin::Mutex to permit trait implementations.
 pub struct Locked<A> {
     inner: spin::Mutex<A>,

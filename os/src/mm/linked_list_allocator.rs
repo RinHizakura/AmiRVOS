@@ -49,13 +49,50 @@ impl LinkedListAllocator {
         // the free region has to be able to hold a ListNode
         assert!(size >= mem::size_of::<ListNode>());
 
-        // create a new node and append it after head
+        let mut current = &mut self.head;
+
+        while let Some(ref next) = current.next {
+            /* No address should exist among the range of node in the linked list, or it
+            could be a double-free error */
+            assert!(addr >= next.start_addr() || addr < next.end_addr());
+
+            if addr < next.start_addr() {
+                // merge node if there are continuous address in neighbor node
+                if addr == current.end_addr() && addr + size == next.start_addr() {
+                    current.size = current.size + size + next.size;
+
+                    let mut_next = current.next.as_mut().unwrap();
+                    current.next = mut_next.next.take();
+                    return;
+                } else if addr == current.end_addr() {
+                    current.size = current.size + size;
+                    return;
+                } else if addr + size == next.start_addr() {
+                    let mut_next = current.next.as_mut().unwrap();
+
+                    let node_ptr = addr as *mut ListNode;
+                    let mut node = ListNode::new(mut_next.size + size);
+                    node.next = mut_next.next.take();
+                    unsafe {
+                        node_ptr.write(node);
+                        current.next = Some(&mut *node_ptr);
+                    }
+                    return;
+                }
+                // else insert the node between current and next
+                break;
+            }
+
+            current = current.next.as_mut().unwrap();
+        }
+
         let node_ptr = addr as *mut ListNode;
         let mut node = ListNode::new(size);
-        node.next = self.head.next.take();
+
+        node.next = current.next.take();
         unsafe {
             node_ptr.write(node);
-            self.head.next = Some(&mut *node_ptr);
+            current.next = Some(&mut *node_ptr);
         }
     }
 
@@ -101,6 +138,15 @@ impl LinkedListAllocator {
         None
     }
 
+    pub fn check_order(&mut self) {
+        let mut current = &mut self.head;
+        info!("\nDump the linked list allocator:");
+        while let Some(ref next) = current.next {
+            info!("addr 0x{:X} with size 0x{:X}", next.start_addr(), next.size);
+            current = current.next.as_mut().unwrap();
+        }
+    }
+
     pub fn init(&mut self, heap_start: usize, heap_size: usize) {
         self.add_free_region(heap_start, heap_size);
     }
@@ -119,6 +165,7 @@ unsafe impl GlobalAlloc for Locked<LinkedListAllocator> {
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        todo!();
+        let size = LinkedListAllocator::size_by_align(layout);
+        self.lock().add_free_region(ptr as usize, size)
     }
 }

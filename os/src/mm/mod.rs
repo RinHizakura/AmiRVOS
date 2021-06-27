@@ -8,5 +8,6 @@ pub fn init() {
 }
 
 pub fn test() {
+    kheap::test();
     page::test();
 }
