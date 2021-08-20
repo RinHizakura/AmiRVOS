@@ -5,33 +5,38 @@ ENTRY(_start)
 
 SECTIONS
 {
-    /* '.' means the location counter, starting from 0x80000000 */
+    /* '.' means the location counter */
     . = 0x80000000;
     _kernel_start = .;
 
+    . = ALIGN(4K);
     .text : {
         *(.text.boot)
         *(.text .text.*)
     }
-
+ 
+    . = ALIGN(4K);
     .rodata : {
         *(.rodata .rodata.*)
     }
 
-    . = ALIGN(16);
+    . = ALIGN(4K);
     .data : {
         *(.data .data.*)
     }
 
+    . = ALIGN(4K);
     _bss_start = .;
     .bss : {
         *(.sbss .bss .bss.*)
     }
     _bss_end = .;
-    /* 64KB is reserved for stack */
-    _stack_start = _bss_end;
-    _stack_end = _stack_start + 0x10000;
-    . = ALIGN(0x00001000);
 
+    . = ALIGN(4K);
+    /* 64KB is reserved for stack */
+    _stack_start = .;
+    _stack_end = _stack_start + 0x10000;
+
+    . = ALIGN(4K);
     _kernel_end = .;
 }

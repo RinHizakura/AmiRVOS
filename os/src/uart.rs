@@ -1,24 +1,23 @@
 // Reference: http://byterunner.com/16550.html
+use crate::config::UART_BASE;
 use core::convert::TryInto;
 
-const UART_BASE: u64 = 0x1000_0000;
-
 // Receive holding register (read mode)
-const UART_RHR: u64 = UART_BASE + 0;
+const UART_RHR: usize = UART_BASE + 0;
 // Transmit holding register (write mode)
-const UART_THR: u64 = UART_BASE + 0;
+const UART_THR: usize = UART_BASE + 0;
 // LSB of Divisor Latch when Enabled
-const UART_DIVISOR_LSB: u64 = UART_BASE + 0;
+const UART_DIVISOR_LSB: usize = UART_BASE + 0;
 // Interrupt enable register
-const UART_IER: u64 = UART_BASE + 1;
+const UART_IER: usize = UART_BASE + 1;
 // MSB of Divisor Latch when Enabled
-const UART_DIVISOR_MSB: u64 = UART_BASE + 1;
+const UART_DIVISOR_MSB: usize = UART_BASE + 1;
 // FIFO control register (write mode)
-const UART_FCR: u64 = UART_BASE + 2;
+const UART_FCR: usize = UART_BASE + 2;
 // Line control register
-const UART_LCR: u64 = UART_BASE + 3;
+const UART_LCR: usize = UART_BASE + 3;
 // Line status register
-const UART_LSR: u64 = UART_BASE + 5;
+const UART_LSR: usize = UART_BASE + 5;
 
 pub fn init() {
     unsafe {

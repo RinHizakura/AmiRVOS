@@ -1,5 +1,7 @@
+pub const KERNEL_MAP_OFFSET: usize = 0xffff_ffff_0000_0000;
+
 // DRAM start from 0x80000000
-pub const DRAM_BASE: usize = 0x8000_0000;
+pub const DRAM_BASE: usize = KERNEL_MAP_OFFSET + 0x8000_0000;
 // Assuming that we have at least 128M RAM to be used
 pub const DRAM_SIZE: usize = 0x800_0000;
 // The bottom memory address of HEAP to be accessed
@@ -10,3 +12,5 @@ pub const LOW_MEMORY: usize = DRAM_BASE + 0x20_0000;
 pub const HIGH_MEMORY: usize = DRAM_BASE + DRAM_SIZE;
 // 1 MB size will be reserved in bss section for kernel heap
 pub const KERNEL_HEAP_SIZE: usize = 0x10_0000;
+// UART start from 0x80000000
+pub const UART_BASE: usize = KERNEL_MAP_OFFSET + 0x1000_0000;

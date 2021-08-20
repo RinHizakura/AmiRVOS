@@ -20,14 +20,20 @@ mod panic;
 mod uart;
 
 #[no_mangle] // Disables Rust to change the symbol name
-pub extern "C" fn rust_main() -> ! {
-    uart::init();
+pub extern "C" fn kinit() {
+    /* Do something before we switch the MMU on for
+     * virtual addressing. It would be a good idea to boot
+     * with Rust codes although our required work now can all
+     * be done easily by assembly codes */
+}
 
+#[no_mangle]
+pub extern "C" fn kmain() -> ! {
+    uart::init();
     info!("Welcome to AmiRVOS world!");
 
     mm::init();
     // apply some run time test for memory management
     mm::test();
-
     loop {}
 }

@@ -30,12 +30,16 @@ impl Page {
         // a too large page order is invalid now
         assert!(order < 0xff);
         // record the order by encoding order + 1 in the bit [7:1] of flag
-        self.flags |= ((order +1) << 1) as u8 & !1;
+        self.flags |= ((order + 1) << 1) as u8 & !1;
     }
 
     pub fn get_order(&mut self) -> usize {
         let tmp = (self.flags & !1) >> 1;
-        return  if tmp == 0 { usize::MAX } else { tmp as usize - 1};
+        return if tmp == 0 {
+            usize::MAX
+        } else {
+            tmp as usize - 1
+        };
     }
 }
 
