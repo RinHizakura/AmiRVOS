@@ -12,5 +12,5 @@ pub const LOW_MEMORY: usize = DRAM_BASE + 0x20_0000;
 pub const HIGH_MEMORY: usize = DRAM_BASE + DRAM_SIZE;
 // 1 MB size will be reserved in bss section for kernel heap
 pub const KERNEL_HEAP_SIZE: usize = 0x10_0000;
-// UART start from 0x80000000
+// UART start from 0x10000000
 pub const UART_BASE: usize = KERNEL_MAP_OFFSET + 0x1000_0000;
