@@ -18,12 +18,24 @@ impl Page {
         return (self.flags & 1) == 1;
     }
 
-    pub fn set(&mut self) {
-        self.flags = 1;
+    pub fn set_alloc(&mut self) {
+        self.flags |= 1;
     }
 
     pub fn clear(&mut self) {
         self.flags = 0;
+    }
+
+    pub fn set_order(&mut self, order: usize) {
+        // a too large page order is invalid now
+        assert!(order < 0xff);
+        // record the order by encoding order + 1 in the bit [7:1] of flag
+        self.flags |= ((order +1) << 1) as u8 & !1;
+    }
+
+    pub fn get_order(&mut self) -> usize {
+        let tmp = (self.flags & !1) >> 1;
+        return  if tmp == 0 { usize::MAX } else { tmp as usize - 1};
     }
 }
 
@@ -60,10 +72,9 @@ pub fn alloc(order: usize) -> *mut u8 {
 
             if found {
                 for j in i..i + pages {
-                    PAGE_STRUCT[j].set();
+                    PAGE_STRUCT[j].set_alloc();
                 }
-                // trickly record the order+1 of page in flag
-                PAGE_STRUCT[i].flags |= ((order + 1) << 1) as u8 & !1;
+                PAGE_STRUCT[i].set_order(order);
                 return (LOW_MEMORY + i * PAGE_SIZE) as *mut u8;
             }
         }
@@ -82,15 +93,14 @@ pub fn free(ptr: *mut u8) {
 
     unsafe {
         let idx = (addr - LOW_MEMORY) / PAGE_SIZE;
-        let order = (PAGE_STRUCT[idx].flags & !1) >> 1;
+        let order = PAGE_STRUCT[idx].get_order();
 
         // make sure the 'ptr' point to the first allocaed block
-        if !PAGE_STRUCT[idx].is_alloc() || order == 0 {
+        if !PAGE_STRUCT[idx].is_alloc() || order == usize::MAX {
             return;
         }
-        // note that the record value is 'order + 1'
-        let pages = 1 << (order - 1);
 
+        let pages = 1 << order;
         for i in idx..idx + pages {
             assert!(PAGE_STRUCT[i].flags & 1 == 1);
             PAGE_STRUCT[i].clear();
