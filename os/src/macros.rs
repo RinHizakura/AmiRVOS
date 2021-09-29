@@ -3,3 +3,9 @@ macro_rules! align_up {
         ($val) + ((!($val) + 1) & (($align) - 1));
     };
 }
+
+macro_rules! align_down {
+    ($val: expr, $align:expr) => {
+        ($val) & !(($align) - 1);
+    };
+}
