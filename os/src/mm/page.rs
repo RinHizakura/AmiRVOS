@@ -4,7 +4,7 @@ use core::ptr::null_mut;
 // Page struct flag init with zero to represent a free page
 static mut PAGE_STRUCT: [Page; PAGE_ENTRY] = [Page { flags: 0 }; PAGE_ENTRY];
 // 4KB page
-const PAGE_SIZE: usize = 1 << 12;
+pub const PAGE_SIZE: usize = 1 << 12;
 // Number of page entry availibled
 const PAGE_ENTRY: usize = (HIGH_MEMORY - LOW_MEMORY) / PAGE_SIZE;
 
