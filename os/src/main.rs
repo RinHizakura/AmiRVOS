@@ -22,9 +22,9 @@ mod uart;
 #[no_mangle] // Disables Rust to change the symbol name
 pub extern "C" fn kinit() {
     /* Do something before we switch the MMU on for
-     * virtual addressing. It would be a good idea to boot
-     * with Rust codes although our required work now can all
-     * be done easily by assembly codes */
+     * virtual addressing. For example, it would be
+     * a good idea to initialize the page table here
+     * using Rust codes directly */
 }
 
 #[no_mangle]

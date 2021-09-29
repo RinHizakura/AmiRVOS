@@ -50,8 +50,8 @@ pub fn init() {
             static KERNEL_END: usize;
         }
 
-        assert!(KERNEL_END < LOW_MEMORY);
         info!("Kernel region: [{:X} {:X}]", KERNEL_START, KERNEL_END);
+        assert!(KERNEL_END < LOW_MEMORY);
     }
 }
 
