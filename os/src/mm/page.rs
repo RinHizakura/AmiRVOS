@@ -87,6 +87,22 @@ pub fn alloc(order: usize) -> *mut u8 {
     return null_mut();
 }
 
+pub fn zalloc(order: usize) -> *mut u8 {
+    let ret = alloc(order);
+    let pages = 1 << order;
+
+    if !ret.is_null() {
+        /* FIXME: This could be inefficient because we clear memory byte by byte */
+        let size = PAGE_SIZE * (1 << order);
+        for i in 0..size {
+            unsafe {
+                (*ret.add(i)) = 0;
+            }
+        }
+    }
+    ret
+}
+
 pub fn free(ptr: *mut u8) {
     let addr = ptr as usize;
 
