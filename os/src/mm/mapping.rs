@@ -131,7 +131,7 @@ impl Mapping {
                 let p = page::zalloc(1);
                 /* write the information of the next level page table into current entry */
                 next_entry
-                    .set_value(((p as i64 >> 2) | (PteFlag::VALID.bits as u16 as i64) as u64));
+                    .set_value(((p as i64 >> 2) | (PteFlag::VALID.bits as u16 as i64)) as u64);
             }
             new_table = next_entry.get_next_table();
             next_entry = &mut new_table.entries[vpn[i] as usize];
