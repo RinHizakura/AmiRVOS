@@ -3,8 +3,12 @@ use crate::mm::page;
 use alloc::{vec, vec::Vec};
 use bitflags::*;
 use core::ops::{Index, IndexMut};
+use lazy_static::lazy_static;
+use spin::Mutex;
 
-static mut MAPPING: Option<Mapping> = None;
+lazy_static! {
+    static ref MAPPING: Mutex<Mapping> = Mutex::new(Mapping::new());
+}
 
 bitflags! {
     #[derive(Default)]
@@ -36,6 +40,13 @@ impl IndexMut<usize> for PteArray {
         unsafe { self.0.add(idx).as_mut().unwrap() }
     }
 }
+/* If we implement a type that contains a type that is not Send or Sync, such as raw
+ * pointers, and we want to mark that type as Send or Sync, we must use unsafe. see the
+ * following explaination:
+ *
+ * - https://doc.rust-lang.org/book/ch19-01-unsafe-rust.html
+ * - reddit.com/r/learnrust/comments/k7rmlr/lazy_static_cannot_be_sent_between_threads_safely */
+unsafe impl Send for PteArray {}
 
 pub struct Pte(u64);
 impl Pte {
@@ -179,38 +190,29 @@ impl Mapping {
 }
 
 pub fn init() {
-    unsafe {
-        MAPPING = Some(Mapping::new());
+    // map the memory region including kernel code, stack, and heap
+    // FIXME: we should consider the attribute for different section
 
-        // map the memory region including kernel code, stack, and heap
-        // FIXME: we should consider the attribute for different section
+    MAPPING.lock().map(Segment {
+        start: config::DRAM_BASE as u64,
+        end: config::HIGH_MEMORY as u64,
+    });
 
-        let mapping = MAPPING.as_mut().unwrap();
+    MAPPING.lock().map(Segment {
+        start: config::UART_BASE as u64,
+        end: (config::UART_BASE + 100) as u64,
+    });
 
-        mapping.map(Segment {
-            start: config::DRAM_BASE as u64,
-            end: config::HIGH_MEMORY as u64,
-        });
-
-        mapping.map(Segment {
-            start: config::UART_BASE as u64,
-            end: (config::UART_BASE + 100) as u64,
-        });
-
-        mapping.activate();
-    }
+    MAPPING.lock().activate();
 }
 
 pub fn test() {
-    unsafe {
-        /* simply check if we did linear map the address space */
-        let mapping = MAPPING.as_mut().unwrap();
-        let vaddr = (config::DRAM_BASE + 0x2000) as u64;
-        match mapping.walk(vaddr) {
-            None => panic!("walking page table of vaddr {:X} failed!\n", vaddr),
-            Some(paddr) => {
-                assert_eq!(vaddr, paddr);
-            }
+    /* simply check if we did linear map the address space */
+    let vaddr = (config::DRAM_BASE + 0x2000) as u64;
+    match MAPPING.lock().walk(vaddr) {
+        None => panic!("walking page table of vaddr {:X} failed!\n", vaddr),
+        Some(paddr) => {
+            assert_eq!(vaddr, paddr);
         }
     }
 }
