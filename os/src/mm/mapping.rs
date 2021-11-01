@@ -61,7 +61,7 @@ impl Pte {
     }
     #[inline]
     pub fn page_num(&self) -> u64 {
-        self.0 & 0x001f_ffff_ffff_ffc0
+        (self.0 & 0x003f_ffff_ffff_fc00) >> 10
     }
 }
 
@@ -100,7 +100,7 @@ impl Mapping {
         let start_addr = align_down!(segment.start, page::PAGE_SIZE as u64);
         let end_addr = align_up!(segment.end, page::PAGE_SIZE as u64);
 
-        for addr in (segment.start..segment.end).step_by(page::PAGE_SIZE) {
+        for addr in (start_addr..end_addr).step_by(page::PAGE_SIZE) {
             self.map_one(
                 addr,
                 addr,
@@ -172,7 +172,7 @@ impl Mapping {
             }
         }
         let offset = vaddr & ((1 << offset_length) - 1);
-        return Some(next_entry.page_num() << 2 + offset as u64);
+        return Some(next_entry.page_num() << 12 + offset as u64);
     }
 }
 
@@ -192,4 +192,11 @@ pub fn init() {
     });
 
     mapping.activate();
+    let vaddr = (config::DRAM_BASE + 0x2000) as u64;
+    match mapping.walk(vaddr) {
+        None => print!("walking page table of vaddr {:X} failed!\n", vaddr),
+        Some(paddr) => {
+            print!("physical addr of vaddr {:X} = {:X}\n", vaddr, paddr);
+        }
+    }
 }

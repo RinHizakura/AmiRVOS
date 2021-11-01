@@ -89,7 +89,6 @@ pub fn alloc(order: usize) -> *mut u8 {
 
 pub fn zalloc(order: usize) -> *mut u8 {
     let ret = alloc(order);
-    let pages = 1 << order;
 
     if !ret.is_null() {
         /* FIXME: This could be inefficient because we clear memory byte by byte */
