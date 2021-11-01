@@ -4,6 +4,7 @@ use alloc::{vec, vec::Vec};
 use bitflags::*;
 use core::ops::{Index, IndexMut};
 use lazy_static::lazy_static;
+use riscv::register::satp;
 use spin::Mutex;
 
 lazy_static! {
@@ -103,10 +104,7 @@ impl Mapping {
     pub fn activate(&self) {
         /* 8 for sv39 page table */
         let new_satp = self.root_ppn | (8 << 60);
-        unsafe {
-            asm!("csrw satp, {}", in(reg) new_satp);
-            asm!("sfence.vma");
-        }
+        satp::write(new_satp as usize);
     }
 
     pub fn map(&mut self, segment: Segment) {
