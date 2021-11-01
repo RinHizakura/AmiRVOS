@@ -9,18 +9,20 @@ SECTIONS
     . = 0x80000000;
     _kernel_start = .;
 
-    . = ALIGN(4K);
+    _text_start = .;
     .text : {
         *(.text.boot)
         *(.text .text.*)
     }
  
     . = ALIGN(4K);
+    _rodata_start = .;
     .rodata : {
         *(.rodata .rodata.*)
     }
 
     . = ALIGN(4K);
+    _data_start = .;
     .data : {
         *(.data .data.*)
     }

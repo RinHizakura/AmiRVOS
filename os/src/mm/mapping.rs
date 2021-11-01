@@ -82,6 +82,7 @@ impl Pte {
 struct Segment {
     start: u64,
     end: u64,
+    flags: PteFlag,
 }
 
 struct Mapping {
@@ -112,11 +113,7 @@ impl Mapping {
         let end_addr = align_up!(segment.end, page::PAGE_SIZE as u64);
 
         for addr in (start_addr..end_addr).step_by(page::PAGE_SIZE) {
-            self.map_one(
-                addr,
-                addr,
-                PteFlag::EXECUTE | PteFlag::READ | PteFlag::WRITE | PteFlag::VALID,
-            );
+            self.map_one(addr, addr, segment.flags | PteFlag::VALID);
         }
     }
 
@@ -189,18 +186,52 @@ impl Mapping {
 
 pub fn init() {
     // map the memory region including kernel code, stack, and heap
-    // FIXME: we should consider the attribute for different section
 
-    MAPPING.lock().map(Segment {
-        start: config::DRAM_BASE as u64,
-        end: config::HIGH_MEMORY as u64,
-    });
+    extern "C" {
+        static KERNEL_END: usize;
+        static TEXT_START: usize;
+        static RODATA_START: usize;
+        static DATA_START: usize;
+        static BSS_START: usize;
+    }
 
-    MAPPING.lock().map(Segment {
-        start: config::UART_BASE as u64,
-        end: (config::UART_BASE + 100) as u64,
-    });
+    unsafe {
+        MAPPING.lock().map(Segment {
+            start: TEXT_START as u64,
+            end: RODATA_START as u64,
+            flags: PteFlag::EXECUTE | PteFlag::READ,
+        });
 
+        MAPPING.lock().map(Segment {
+            start: RODATA_START as u64,
+            end: DATA_START as u64,
+            flags: PteFlag::READ,
+        });
+
+        MAPPING.lock().map(Segment {
+            start: DATA_START as u64,
+            end: BSS_START as u64,
+            flags: PteFlag::READ | PteFlag::WRITE,
+        });
+
+        MAPPING.lock().map(Segment {
+            start: BSS_START as u64,
+            end: KERNEL_END as u64,
+            flags: PteFlag::READ | PteFlag::WRITE,
+        });
+
+        MAPPING.lock().map(Segment {
+            start: KERNEL_END as u64,
+            end: config::HIGH_MEMORY as u64,
+            flags: PteFlag::READ | PteFlag::WRITE,
+        });
+
+        MAPPING.lock().map(Segment {
+            start: config::UART_BASE as u64,
+            end: (config::UART_BASE + 100) as u64,
+            flags: PteFlag::READ | PteFlag::WRITE,
+        });
+    }
     MAPPING.lock().activate();
 }
 
