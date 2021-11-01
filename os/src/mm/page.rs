@@ -9,31 +9,31 @@ pub const PAGE_SIZE: usize = 1 << 12;
 const PAGE_ENTRY: usize = (HIGH_MEMORY - LOW_MEMORY) / PAGE_SIZE;
 
 #[derive(Copy, Clone)]
-pub struct Page {
+struct Page {
     flags: u8,
 }
 
 impl Page {
-    pub fn is_alloc(&self) -> bool {
+    fn is_alloc(&self) -> bool {
         return (self.flags & 1) == 1;
     }
 
-    pub fn set_alloc(&mut self) {
+    fn set_alloc(&mut self) {
         self.flags |= 1;
     }
 
-    pub fn clear(&mut self) {
+    fn clear(&mut self) {
         self.flags = 0;
     }
 
-    pub fn set_order(&mut self, order: usize) {
+    fn set_order(&mut self, order: usize) {
         // a too large page order is invalid now
         assert!(order < 0xff);
         // record the order by encoding order + 1 in the bit [7:1] of flag
         self.flags |= ((order + 1) << 1) as u8 & !1;
     }
 
-    pub fn get_order(&mut self) -> usize {
+    fn get_order(&mut self) -> usize {
         let tmp = (self.flags & !1) >> 1;
         return if tmp == 0 {
             usize::MAX

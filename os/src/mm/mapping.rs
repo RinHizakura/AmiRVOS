@@ -13,7 +13,7 @@ lazy_static! {
 
 bitflags! {
     #[derive(Default)]
-    pub struct PteFlag: u8 {
+    struct PteFlag: u8 {
     const VALID = 1 << 0;
     const READ = 1 << 1;
     const WRITE = 1 << 2;
@@ -25,11 +25,11 @@ bitflags! {
    }
 }
 
-pub struct PageTable {
-    pub entries: PteArray,
+struct PageTable {
+    entries: PteArray,
 }
 
-pub struct PteArray(*mut Pte);
+struct PteArray(*mut Pte);
 impl Index<usize> for PteArray {
     type Output = Pte;
     fn index(&self, idx: usize) -> &Self::Output {
@@ -49,7 +49,7 @@ impl IndexMut<usize> for PteArray {
  * - reddit.com/r/learnrust/comments/k7rmlr/lazy_static_cannot_be_sent_between_threads_safely */
 unsafe impl Send for PteArray {}
 
-pub struct Pte(u64);
+struct Pte(u64);
 impl Pte {
     #[inline]
     fn set_value(&mut self, value: u64) {
@@ -69,28 +69,28 @@ impl Pte {
         PageTable { entries: entries }
     }
     #[inline]
-    pub fn has_next_level(&self) -> bool {
+    fn has_next_level(&self) -> bool {
         !(((self.0 & PteFlag::READ.bits as u64) != 0)
             || (self.0 & PteFlag::EXECUTE.bits as u64) != 0)
     }
     #[inline]
-    pub fn page_num(&self) -> u64 {
+    fn page_num(&self) -> u64 {
         (self.0 & 0x003f_ffff_ffff_fc00) >> 10
     }
 }
 
-pub struct Segment {
-    pub start: u64,
-    pub end: u64,
+struct Segment {
+    start: u64,
+    end: u64,
 }
 
-pub struct Mapping {
+struct Mapping {
     page_tables: Vec<PageTable>,
     root_ppn: u64,
 }
 
 impl Mapping {
-    pub fn new() -> Mapping {
+    fn new() -> Mapping {
         // allocate a page to create page table
         let root = PteArray(page::zalloc(0) as *mut Pte);
         let root_table = PageTable { entries: root };
@@ -101,13 +101,13 @@ impl Mapping {
         }
     }
 
-    pub fn activate(&self) {
+    fn activate(&self) {
         /* 8 for sv39 page table */
         let new_satp = self.root_ppn | (8 << 60);
         satp::write(new_satp as usize);
     }
 
-    pub fn map(&mut self, segment: Segment) {
+    fn map(&mut self, segment: Segment) {
         let start_addr = align_down!(segment.start, page::PAGE_SIZE as u64);
         let end_addr = align_up!(segment.end, page::PAGE_SIZE as u64);
 
@@ -120,7 +120,7 @@ impl Mapping {
         }
     }
 
-    pub fn map_one(&mut self, vaddr: u64, paddr: u64, flags: PteFlag) {
+    fn map_one(&mut self, vaddr: u64, paddr: u64, flags: PteFlag) {
         let vpn = [
             (vaddr >> 12) & 0x1ff,
             (vaddr >> 21) & 0x1ff,
@@ -156,7 +156,7 @@ impl Mapping {
         );
     }
 
-    pub fn walk(&mut self, vaddr: u64) -> Option<u64> {
+    fn walk(&mut self, vaddr: u64) -> Option<u64> {
         let vaddr = align_down!(vaddr, page::PAGE_SIZE as u64);
 
         let vpn = [
