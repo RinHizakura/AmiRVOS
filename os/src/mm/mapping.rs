@@ -4,6 +4,8 @@ use alloc::{vec, vec::Vec};
 use bitflags::*;
 use core::ops::{Index, IndexMut};
 
+static mut MAPPING: Option<Mapping> = None;
+
 bitflags! {
     #[derive(Default)]
     pub struct PteFlag: u8 {
@@ -177,26 +179,38 @@ impl Mapping {
 }
 
 pub fn init() {
-    let mut mapping = Mapping::new();
+    unsafe {
+        MAPPING = Some(Mapping::new());
 
-    // map the memory region including kernel code, stack, and heap
-    // FIXME: we should consider the attribute for different section
-    mapping.map(Segment {
-        start: config::DRAM_BASE as u64,
-        end: config::HIGH_MEMORY as u64,
-    });
+        // map the memory region including kernel code, stack, and heap
+        // FIXME: we should consider the attribute for different section
 
-    mapping.map(Segment {
-        start: config::UART_BASE as u64,
-        end: (config::UART_BASE + 100) as u64,
-    });
+        let mapping = MAPPING.as_mut().unwrap();
 
-    mapping.activate();
-    let vaddr = (config::DRAM_BASE + 0x2000) as u64;
-    match mapping.walk(vaddr) {
-        None => print!("walking page table of vaddr {:X} failed!\n", vaddr),
-        Some(paddr) => {
-            print!("physical addr of vaddr {:X} = {:X}\n", vaddr, paddr);
+        mapping.map(Segment {
+            start: config::DRAM_BASE as u64,
+            end: config::HIGH_MEMORY as u64,
+        });
+
+        mapping.map(Segment {
+            start: config::UART_BASE as u64,
+            end: (config::UART_BASE + 100) as u64,
+        });
+
+        mapping.activate();
+    }
+}
+
+pub fn test() {
+    unsafe {
+        /* simply check if we did linear map the address space */
+        let mapping = MAPPING.as_mut().unwrap();
+        let vaddr = (config::DRAM_BASE + 0x2000) as u64;
+        match mapping.walk(vaddr) {
+            None => panic!("walking page table of vaddr {:X} failed!\n", vaddr),
+            Some(paddr) => {
+                assert_eq!(vaddr, paddr);
+            }
         }
     }
 }
