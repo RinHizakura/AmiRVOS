@@ -17,7 +17,7 @@ _start:
 	bltu	a0, a1, 1b
 2:
 	la	sp, _stack_end
-        
+
         # (0b11 << 11): the privilege level will be set to 3(machine mode) after mret
         # for bit 7 of mstatus, the machine mode interrupt-enable bit will be 0 after mret
         li	t0, (0b11 << 11)
@@ -44,13 +44,17 @@ _start:
 
         # M-mode and S-mode software interrupt, timer interrupt, and external
         # interrupt are enabled
-	li	t0, 0xa | (0xa << 4) | (1 << 8)
+	li	t0, 0xa | (0xa << 4) | (0xa << 8)
 	csrw	mie, t0
 
         # delegate software interrupt, timer interrupt, and external interrupt from
         # M-mode to S-mode
         li	t2, (1 << 1) | (1 << 5) | (1 << 9)
 	csrw	mideleg, t2
+
+        # delegate ebreak from M-mode to S-mode
+        li	t2, (1 << 3)
+	csrw	medeleg, t2
 
         # set up page table and corresponding mode for virtual addressing
         la	t0, boot_page_table
@@ -59,6 +63,15 @@ _start:
         or	t0, t0, t1
         csrw	satp, t0
         sfence.vma
+
+        # mtvec is only store to respond if wrong irq handler is triggered
+        la	t0, m_trap_vector
+	csrw	mtvec, t0
+
+        # In AmiRVOS, we'll prefer to delegate trap to Supervisor mode, so the
+        # expected entry point of handler should be in stvec
+	la	t0, s_trap_vector
+	csrw	stvec, t0
 
         # hanging if return from kmain
 	la	ra, 3f

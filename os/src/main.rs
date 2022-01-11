@@ -7,6 +7,7 @@ extern crate alloc;
 
 global_asm!(include_str!("asm/entry.asm"));
 global_asm!(include_str!("asm/mem.asm"));
+global_asm!(include_str!("asm/trap.asm"));
 
 #[macro_use]
 mod console;
@@ -15,6 +16,7 @@ mod console;
 mod macros;
 
 mod config;
+mod irq;
 mod mm;
 mod panic;
 mod uart;
@@ -35,5 +37,10 @@ pub extern "C" fn kmain() -> ! {
     mm::init();
     // apply some run time test for memory management
     mm::test();
+
+    // intentionally trigger a trap
+    unsafe {
+        asm!("ebreak");
+    };
     loop {}
 }
