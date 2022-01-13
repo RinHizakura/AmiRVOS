@@ -33,3 +33,9 @@ macro_rules! info {
         $crate::console::print(format_args!(concat!("\x1b[1;94m", $fmt, "\x1b[0m\n") $(, $($arg)+)?));
     }
 }
+
+macro_rules! warning {
+    ($fmt: literal $(, $($arg: tt)+)?) => {
+        $crate::console::print(format_args!(concat!("\x1b[1;33m", $fmt, "\x1b[0m\n") $(, $($arg)+)?));
+    }
+}

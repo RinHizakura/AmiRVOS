@@ -32,15 +32,18 @@ pub extern "C" fn kinit() {
 #[no_mangle]
 pub extern "C" fn kmain() -> ! {
     uart::init();
-    info!("Welcome to AmiRVOS world!");
+    irq::init();
+    print!("Welcome to AmiRVOS world!\n");
 
     mm::init();
     // apply some run time test for memory management
     mm::test();
 
     // intentionally trigger a trap
+    println!("Trigger ebreak");
     unsafe {
         asm!("ebreak");
     };
+    println!("We'll back!");
     loop {}
 }

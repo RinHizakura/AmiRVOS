@@ -14,7 +14,7 @@ SECTIONS
         *(.text.boot)
         *(.text .text.*)
     }
- 
+
     . = ALIGN(4K);
     _rodata_start = .;
     .rodata : {
@@ -35,9 +35,11 @@ SECTIONS
     _bss_end = .;
 
     . = ALIGN(4K);
-    /* 64KB is reserved for stack */
+    /* 64 * 2 KB  is reserved for stack and trap stack */
     _stack_start = .;
     _stack_end = _stack_start + 0x10000;
+    _trap_stack_start = .;
+    _trap_stack_end = _trap_stack_start + 0x10000;
 
     . = ALIGN(4K);
     _kernel_end = .;
