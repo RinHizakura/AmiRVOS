@@ -12,3 +12,7 @@ pub const HIGH_MEMORY: usize = DRAM_BASE + DRAM_SIZE;
 pub const KERNEL_HEAP_SIZE: usize = 0x10_0000;
 // UART start from 0x10000000
 pub const UART_BASE: usize = 0x1000_0000;
+// CLINT start from 0x2000000
+pub const CLINT_BASE: usize = 0x200_0000;
+// 64K mapping region for CLINT
+pub const CLINT_SIZE: usize = 0x10000;

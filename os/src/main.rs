@@ -15,6 +15,7 @@ mod console;
 #[macro_use]
 mod macros;
 
+mod clint;
 mod config;
 mod irq;
 mod mm;
@@ -45,5 +46,7 @@ pub extern "C" fn kmain() -> ! {
         asm!("ebreak");
     };
     println!("We'll back!");
+
+    clint::init();
     loop {}
 }

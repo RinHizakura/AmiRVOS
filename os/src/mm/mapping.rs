@@ -231,6 +231,12 @@ pub fn init() {
             end: (config::UART_BASE + 100) as u64,
             flags: PteFlag::READ | PteFlag::WRITE,
         });
+
+        MAPPING.lock().map(Segment {
+            start: config::CLINT_BASE as u64,
+            end: (config::CLINT_BASE + config::CLINT_SIZE) as u64,
+            flags: PteFlag::READ | PteFlag::WRITE,
+        });
     }
     MAPPING.lock().activate();
 }
