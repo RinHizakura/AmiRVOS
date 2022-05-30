@@ -24,16 +24,16 @@ mod uart;
 
 #[no_mangle] // Disables Rust to change the symbol name
 pub extern "C" fn kinit() {
-    /* Do something before we switch the MMU on for
-     * virtual addressing. For example, it would be
-     * a good idea to initialize the page table here
-     * using Rust codes directly */
+    /* We can do something more before we switch the MMU on for
+     * virtual addressing. For example, it would be a good idea to
+     * initialize the page table here using Rust codes directly. */
+    irq::minit();
 }
 
 #[no_mangle]
 pub extern "C" fn kmain() -> ! {
     uart::init();
-    irq::init();
+    irq::sinit();
     print!("Welcome to AmiRVOS world!\n");
 
     mm::init();

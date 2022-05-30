@@ -49,7 +49,7 @@ _start:
 
         # delegate software interrupt, timer interrupt, and external interrupt from
         # M-mode to S-mode
-        li	t2, (1 << 1) | (1 << 5) | (1 << 9)
+        li	t2, 0xffff
 	csrw	mideleg, t2
 
         # delegate ebreak from M-mode to S-mode
