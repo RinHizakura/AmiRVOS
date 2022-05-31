@@ -1,5 +1,10 @@
+use crate::clint;
 use lazy_static::lazy_static;
-use riscv::register::{mcause, mscratch, scause, sscratch};
+use riscv::register::{
+    mcause,
+    mcause::{Interrupt, Trap},
+    mscratch, scause, sscratch,
+};
 
 lazy_static! {
     static ref M_KERNEL_TRAP_FRAME: TrapFrame = TrapFrame::new();
@@ -31,11 +36,11 @@ pub fn m_irq_handler(mepc: usize, mcause: mcause::Mcause, mtval: usize) -> usize
 
     /* We only aim to handle timer interrupt in machine mode irq handler now, otherwise
      * they are taken as invalid interrupt.  */
-    assert_eq!(mcause.bits() >> 63, 1);
-    assert_eq!(mcause.bits() & 0xf, 7);
-    /* FIXME: trigger timer interrupt periodcally */
-    println!("ret pc = {:X}", return_pc);
-    loop {}
+    match mcause.cause() {
+        Trap::Interrupt(Interrupt::MachineTimer) => clint::set_next_tick(),
+        _ => panic!("M=Interrupted: {:?}, {:X}", mcause.cause(), mtval),
+    }
+    return_pc
 }
 
 #[no_mangle]

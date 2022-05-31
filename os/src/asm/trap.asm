@@ -2,10 +2,10 @@
 .option norvc
 .altmacro
 
-.macro save_gp i, basereg=t6
+.macro save_gp i, basereg
 	sd	x\i, ((\i)*8)(\basereg)
 .endm
-.macro load_gp i, basereg=t6
+.macro load_gp i, basereg
 	ld	x\i, ((\i)*8)(\basereg)
 .endm
 
@@ -19,7 +19,7 @@ m_trap_vector:
 
     .set      i, 1
     .rept     30
-       save_gp    %i
+       save_gp    %i, t6
        .set       i, i+1
     .endr
 
@@ -44,8 +44,8 @@ m_trap_vector:
     csrr     t6, mscratch
     .set     i, 1
     .rept    31
-        load_gp    %i
-        .set     i, i+1
+        load_gp   %i, t6
+        .set      i, i+1
     .endr
 
     mret
@@ -62,7 +62,7 @@ s_trap_vector:
     # store registers x1 ~ x30 in trapframe
     .set      i, 1
     .rept     30
-       save_gp    %i
+       save_gp    %i, t6
        .set       i, i+1
     .endr
 
@@ -96,8 +96,8 @@ s_trap_vector:
     # restore registers x1 ~ x31 in trapframe
     .set     i, 1
     .rept    31
-        load_gp    %i
-        .set     i, i+1
+        load_gp   %i, t6
+        .set      i, i+1
     .endr
 
     sret
