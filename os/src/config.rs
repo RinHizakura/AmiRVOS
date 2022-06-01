@@ -16,3 +16,7 @@ pub const UART_BASE: usize = 0x1000_0000;
 pub const CLINT_BASE: usize = 0x200_0000;
 // 64K mapping region for CLINT
 pub const CLINT_SIZE: usize = 0x10000;
+// PLIC start from 0xc000000
+pub const PLIC_BASE: usize = 0xc00_0000;
+// mapping region for PLIC
+pub const PLIC_SIZE: usize = 0x21_6000;

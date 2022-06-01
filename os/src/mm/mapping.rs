@@ -237,6 +237,12 @@ pub fn init() {
             end: (config::CLINT_BASE + config::CLINT_SIZE) as u64,
             flags: PteFlag::READ | PteFlag::WRITE,
         });
+
+        MAPPING.lock().map(Segment {
+            start: config::PLIC_BASE as u64,
+            end: (config::PLIC_BASE + config::PLIC_SIZE) as u64,
+            flags: PteFlag::READ | PteFlag::WRITE,
+        });
     }
     MAPPING.lock().activate();
 }

@@ -20,6 +20,7 @@ mod config;
 mod irq;
 mod mm;
 mod panic;
+mod plic;
 mod uart;
 
 #[no_mangle] // Disables Rust to change the symbol name
@@ -48,5 +49,6 @@ pub extern "C" fn kmain() -> ! {
     println!("We'll back!");
 
     clint::init();
+    plic::init();
     loop {}
 }
