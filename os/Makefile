@@ -21,7 +21,7 @@ qemu: build
 		-nographic \
 		-bios none \
 		-serial mon:stdio \
-		-kernel $(KERNEL_FILE) \
+		-kernel $(KERNEL_FILE)
 
 GDBSTUB_COMM := 127.0.0.1:1234
 debug:

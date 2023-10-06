@@ -46,11 +46,11 @@ pub fn m_irq_handler(mepc: usize, mcause: mcause::Mcause, mtval: usize) -> usize
 #[no_mangle]
 pub fn s_irq_handler(sepc: usize, scause: scause::Scause, stval: usize) -> usize {
     let mut return_pc = sepc;
-    warning!("S=Interrupted: {:?}, {:X}", scause.cause(), stval);
+    warning!("S=Interrupted: {:?}, {:X} {:X}", scause.cause(), stval, sepc);
 
     assert_eq!(sepc, S_KERNEL_TRAP_FRAME.epc);
     // TODO: we should return correct PC according to the trap type
-    return_pc + 4
+    return_pc + 2
 }
 
 pub fn sinit() {

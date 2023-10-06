@@ -1,9 +1,14 @@
 #![no_std] // Disables all standard library
 #![no_main] // Disables emitting the main symbol
-#![feature(asm, global_asm, panic_info_message, alloc_error_handler)]
+
+/* TODO: consider to not rely on these features to stay in
+ * stable channel */
+#![feature(panic_info_message, alloc_error_handler)]
 #![feature(const_mut_refs)]
 
 extern crate alloc;
+
+use core::arch::{asm, global_asm};
 
 global_asm!(include_str!("asm/entry.asm"));
 global_asm!(include_str!("asm/mem.asm"));

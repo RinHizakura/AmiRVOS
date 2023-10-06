@@ -61,7 +61,7 @@ impl Pte {
     }
     #[inline]
     fn is_valid(&self) -> bool {
-        self.0 & PteFlag::VALID.bits as u64 != 0
+        self.0 & PteFlag::VALID.bits() as u64 != 0
     }
     #[inline]
     fn get_next_table(&self) -> PageTable {
@@ -70,8 +70,8 @@ impl Pte {
     }
     #[inline]
     fn has_next_level(&self) -> bool {
-        !(((self.0 & PteFlag::READ.bits as u64) != 0)
-            || (self.0 & PteFlag::EXECUTE.bits as u64) != 0)
+        !(((self.0 & PteFlag::READ.bits() as u64) != 0)
+            || (self.0 & PteFlag::EXECUTE.bits() as u64) != 0)
     }
     #[inline]
     fn page_num(&self) -> u64 {
@@ -113,11 +113,11 @@ impl Mapping {
         let end_addr = align_up!(segment.end, page::PAGE_SIZE as u64);
 
         for addr in (start_addr..end_addr).step_by(page::PAGE_SIZE) {
-            self.map_one(addr, addr, segment.flags | PteFlag::VALID);
+            self.map_one(addr, addr, segment.flags.bits() | (PteFlag::VALID).bits());
         }
     }
 
-    fn map_one(&mut self, vaddr: u64, paddr: u64, flags: PteFlag) {
+    fn map_one(&mut self, vaddr: u64, paddr: u64, flags: u8) {
         let vpn = [
             (vaddr >> 12) & 0x1ff,
             (vaddr >> 21) & 0x1ff,
@@ -139,7 +139,7 @@ impl Mapping {
                 let p = page::zalloc(1);
                 /* write the information of the next level page table into current entry */
                 next_entry
-                    .set_value(((p as i64 >> 2) | (PteFlag::VALID.bits as u16 as i64)) as u64);
+                    .set_value(((p as i64 >> 2) | (PteFlag::VALID.bits() as u16 as i64)) as u64);
             }
             new_table = next_entry.get_next_table();
             next_entry = &mut new_table.entries[vpn[i] as usize];
@@ -149,7 +149,7 @@ impl Mapping {
             ((ppn[2] << 28) as i64
                 | (ppn[1] << 19) as i64
                 | (ppn[0] << 10) as i64
-                | (flags.bits) as u16 as i64) as u64,
+                | flags as u16 as i64) as u64,
         );
     }
 
