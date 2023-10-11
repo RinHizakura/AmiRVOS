@@ -2,9 +2,10 @@ use crate::clint;
 use lazy_static::lazy_static;
 use riscv::register::{
     mcause,
-    mcause::{Interrupt, Trap},
     mscratch, scause, sscratch,
 };
+use mcause::{Trap as mTrap, Interrupt as mInterrupt};
+use scause::{Trap as sTrap, Interrupt as sInterrupt, Exception as sException};
 
 lazy_static! {
     static ref M_KERNEL_TRAP_FRAME: TrapFrame = TrapFrame::new();
@@ -37,7 +38,7 @@ pub fn m_irq_handler(mepc: usize, mcause: mcause::Mcause, mtval: usize) -> usize
     /* We only aim to handle timer interrupt in machine mode irq handler now, otherwise
      * they are taken as invalid interrupt.  */
     match mcause.cause() {
-        Trap::Interrupt(Interrupt::MachineTimer) => clint::set_next_tick(),
+        mTrap::Interrupt(mInterrupt::MachineTimer) => clint::set_next_tick(),
         _ => panic!("M=Interrupted: {:?}, {:X}", mcause.cause(), mtval),
     }
     return_pc
@@ -49,8 +50,13 @@ pub fn s_irq_handler(sepc: usize, scause: scause::Scause, stval: usize) -> usize
     warning!("S=Interrupted: {:?}, {:X} {:X}", scause.cause(), stval, sepc);
 
     assert_eq!(sepc, S_KERNEL_TRAP_FRAME.epc);
-    // TODO: we should return correct PC according to the trap type
-    return_pc + 2
+    match scause.cause() {
+        sTrap::Interrupt(sInterrupt::SupervisorExternal) => panic!("todo"),
+        sTrap::Exception(sException::Breakpoint) => return_pc += 2,
+        _ => panic!("S=Interrupted: {:?}, {:X} {:X}", scause.cause(), stval, sepc),
+    }
+
+    return_pc
 }
 
 pub fn sinit() {
