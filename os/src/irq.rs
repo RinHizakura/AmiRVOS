@@ -1,4 +1,4 @@
-use crate::clint;
+use crate::{plic, clint};
 use lazy_static::lazy_static;
 use riscv::register::{
     mcause,
@@ -51,7 +51,7 @@ pub fn s_irq_handler(sepc: usize, scause: scause::Scause, stval: usize) -> usize
 
     assert_eq!(sepc, S_KERNEL_TRAP_FRAME.epc);
     match scause.cause() {
-        sTrap::Interrupt(sInterrupt::SupervisorExternal) => panic!("todo"),
+        sTrap::Interrupt(sInterrupt::SupervisorExternal) => plic::irq_handler(),
         sTrap::Exception(sException::Breakpoint) => return_pc += 2,
         _ => panic!("S=Interrupted: {:?}, {:X} {:X}", scause.cause(), stval, sepc),
     }

@@ -27,6 +27,7 @@ mod mm;
 mod panic;
 mod plic;
 mod uart;
+mod utils;
 
 #[no_mangle] // Disables Rust to change the symbol name
 pub extern "C" fn kinit() {

@@ -1,11 +1,14 @@
 // Reference: http://byterunner.com/16550.html
 use core::convert::TryInto;
-
-// Receive holding register (read mode)
-mmap_reg!(uart_rhr, 0x1000_0000 + 0, u8);
+use crate::utils::ringbuf::RingBuf;
+use lazy_static::lazy_static;
+use spin::Mutex;
 
 // Transmit holding register (write mode)
 mmap_reg!(uart_thr, 0x1000_0000 + 0, u8);
+
+// Receive holding register (read mode)
+mmap_reg!(uart_rhr, 0x1000_0000 + 0, u8);
 
 // LSB of Divisor Latch when Enabled
 mmap_reg!(uart_lsb, 0x1000_0000 + 0, u8);
@@ -86,4 +89,22 @@ pub fn uart_get() -> u8 {
         }
     }
     uart_rhr::read()
+}
+
+lazy_static! {
+    static ref READ_BUFFER: Mutex<RingBuf<u8, 512>> = Mutex::new(RingBuf::new());
+}
+
+pub fn irq_handler() {
+    let c = uart_get();
+
+    /* TODO: Collect character in the ring buffer without
+     * consuming it. We'll take care of this once console is supported
+     * in the future. */
+    READ_BUFFER.lock().push(c);
+
+    // FIXME: Echo the character for checking now
+    if (c as char).is_ascii_alphanumeric() {
+        print!("{}", c as char);
+    }
 }
