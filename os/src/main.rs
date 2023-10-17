@@ -22,25 +22,27 @@ mod macros;
 
 mod clint;
 mod config;
-mod irq;
+mod trap;
 mod mm;
+mod sched;
 mod panic;
 mod plic;
 mod uart;
 mod utils;
+mod lock;
 
 #[no_mangle] // Disables Rust to change the symbol name
 pub extern "C" fn kinit() {
     /* We can do something more before we switch the MMU on for
      * virtual addressing. For example, it would be a good idea to
      * initialize the page table here using Rust codes directly. */
-    irq::minit();
+    trap::minit();
 }
 
 #[no_mangle]
 pub extern "C" fn kmain() -> ! {
     uart::init();
-    irq::sinit();
+    trap::sinit();
     print!("Welcome to AmiRVOS world!\n");
 
     mm::init();
@@ -56,5 +58,6 @@ pub extern "C" fn kmain() -> ! {
 
     clint::init();
     plic::init();
+    sched::init();
     loop {}
 }

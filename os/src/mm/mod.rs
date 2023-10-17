@@ -1,7 +1,7 @@
 mod kheap;
 mod linked_list_allocator;
-mod mapping;
-mod page;
+pub mod mapping;
+pub mod page;
 
 pub fn init() {
     kheap::init();

@@ -1,4 +1,4 @@
-use crate::mm::kheap::Locked;
+use crate::lock::Locked;
 use core::alloc::{GlobalAlloc, Layout};
 use core::mem;
 use core::ptr;

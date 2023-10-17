@@ -79,19 +79,19 @@ impl Pte {
     }
 }
 
-struct Segment {
-    start: u64,
-    end: u64,
-    flags: PteFlag,
+pub struct Segment {
+    pub start: u64,
+    pub end: u64,
+    pub flags: PteFlag,
 }
 
-struct Mapping {
+pub struct Mapping {
     page_tables: Vec<PageTable>,
     root_ppn: u64,
 }
 
 impl Mapping {
-    fn new() -> Mapping {
+    pub fn new() -> Mapping {
         // allocate a page to create page table
         let root = PteArray(page::zalloc(0) as *mut Pte);
         let root_table = PageTable { entries: root };

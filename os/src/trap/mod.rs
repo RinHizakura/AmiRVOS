@@ -1,33 +1,18 @@
 use crate::{plic, clint};
-use lazy_static::lazy_static;
+use crate::trap::context::TrapFrame;
 use riscv::register::{
     mcause,
     mscratch, scause, sscratch,
 };
 use mcause::{Trap as mTrap, Interrupt as mInterrupt};
 use scause::{Trap as sTrap, Interrupt as sInterrupt, Exception as sException};
+use lazy_static::lazy_static;
+
+pub mod context;
 
 lazy_static! {
     static ref M_KERNEL_TRAP_FRAME: TrapFrame = TrapFrame::new();
     static ref S_KERNEL_TRAP_FRAME: TrapFrame = TrapFrame::new();
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct TrapFrame {
-    pub regs: [usize; 32], // 0 ~ 255: x1 to x32 registers
-    pub satp: usize,       // 256: satp
-    pub epc: usize,        // 264: epc
-}
-
-impl TrapFrame {
-    fn new() -> TrapFrame {
-        TrapFrame {
-            regs: [0; 32],
-            satp: 0,
-            epc: 0,
-        }
-    }
 }
 
 #[no_mangle]
