@@ -1,14 +1,14 @@
 use crate::config;
 use crate::mm::page;
+use crate::lock::Locked;
 use alloc::{vec, vec::Vec};
 use bitflags::*;
 use core::ops::{Index, IndexMut};
 use lazy_static::lazy_static;
 use riscv::register::satp;
-use spin::Mutex;
 
 lazy_static! {
-    static ref MAPPING: Mutex<Mapping> = Mutex::new(Mapping::new());
+    static ref MAPPING: Locked<Mapping> = Locked::new(Mapping::new());
 }
 
 bitflags! {

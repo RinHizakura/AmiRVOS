@@ -1,8 +1,8 @@
 // Reference: http://byterunner.com/16550.html
 use core::convert::TryInto;
 use crate::utils::ringbuf::RingBuf;
+use crate::lock::Locked;
 use lazy_static::lazy_static;
-use spin::Mutex;
 
 // Transmit holding register (write mode)
 mmap_reg!(uart_thr, 0x1000_0000 + 0, u8);
@@ -92,7 +92,7 @@ pub fn uart_get() -> u8 {
 }
 
 lazy_static! {
-    static ref READ_BUFFER: Mutex<RingBuf<u8, 512>> = Mutex::new(RingBuf::new());
+    static ref READ_BUFFER: Locked<RingBuf<u8, 512>> = Locked::new(RingBuf::new());
 }
 
 pub fn irq_handler() {
