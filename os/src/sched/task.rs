@@ -12,7 +12,7 @@ impl TaskStack {
 }
 
 #[derive(Clone, Copy)]
-pub struct TaskId(pub u64);
+pub struct TaskId(pub u32);
 pub struct Task {
     stack: TaskStack,
     pc: usize,

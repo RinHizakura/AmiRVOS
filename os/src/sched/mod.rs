@@ -10,5 +10,6 @@ lazy_static! {
 }
 
 pub fn init() {
-    let _tid = SCHEDULER.lock().spawn();
+    let tid = SCHEDULER.lock().spawn();
+    info!("Create a new task with id {}", tid.0);
 }
