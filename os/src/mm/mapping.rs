@@ -80,8 +80,9 @@ impl Pte {
 }
 
 pub struct Segment {
-    pub start: u64,
-    pub end: u64,
+    pub vaddr: u64,
+    pub paddr: u64,
+    pub len: u64,
     pub flags: PteFlag,
 }
 
@@ -109,11 +110,15 @@ impl Mapping {
     }
 
     fn map(&mut self, segment: Segment) {
-        let start_addr = align_down!(segment.start, page::PAGE_SIZE as u64);
-        let end_addr = align_up!(segment.end, page::PAGE_SIZE as u64);
+        /* 1. The alignment should be followed
+         * 2. No extra check on duplicate vaddr, we should carefully decide it */
+        assert_eq!(align_up!(segment.vaddr, page::PAGE_SIZE as u64), segment.vaddr);
+        assert_eq!(align_up!(segment.paddr, page::PAGE_SIZE as u64), segment.paddr);
 
-        for addr in (start_addr..end_addr).step_by(page::PAGE_SIZE) {
-            self.map_one(addr, addr, segment.flags.bits() | (PteFlag::VALID).bits());
+        let len = align_up!(segment.len, page::PAGE_SIZE as u64);
+        for offset in (0..len).step_by(page::PAGE_SIZE) {
+            self.map_one(segment.vaddr + offset, segment.paddr + offset,
+                         segment.flags.bits() | (PteFlag::VALID).bits());
         }
     }
 
@@ -197,50 +202,58 @@ pub fn init() {
 
     unsafe {
         MAPPING.lock().map(Segment {
-            start: TEXT_START as u64,
-            end: RODATA_START as u64,
+            vaddr: TEXT_START as u64,
+            paddr: TEXT_START as u64,
+            len: RODATA_START as u64 - TEXT_START as u64,
             flags: PteFlag::EXECUTE | PteFlag::READ,
         });
 
         MAPPING.lock().map(Segment {
-            start: RODATA_START as u64,
-            end: DATA_START as u64,
+            vaddr: RODATA_START as u64,
+            paddr: RODATA_START as u64,
+            len: DATA_START as u64 - RODATA_START as u64,
             flags: PteFlag::READ,
         });
 
         MAPPING.lock().map(Segment {
-            start: DATA_START as u64,
-            end: BSS_START as u64,
+            vaddr: DATA_START as u64,
+            paddr: DATA_START as u64,
+            len: BSS_START as u64 - DATA_START as u64,
             flags: PteFlag::READ | PteFlag::WRITE,
         });
 
         MAPPING.lock().map(Segment {
-            start: BSS_START as u64,
-            end: KERNEL_END as u64,
+            vaddr: BSS_START as u64,
+            paddr: BSS_START as u64,
+            len: KERNEL_END as u64 - BSS_START as u64,
             flags: PteFlag::READ | PteFlag::WRITE,
         });
 
         MAPPING.lock().map(Segment {
-            start: KERNEL_END as u64,
-            end: config::HIGH_MEMORY as u64,
+            vaddr: KERNEL_END as u64,
+            paddr: KERNEL_END as u64,
+            len: config::HIGH_MEMORY as u64 - KERNEL_END as u64,
             flags: PteFlag::READ | PteFlag::WRITE,
         });
 
         MAPPING.lock().map(Segment {
-            start: config::UART_BASE as u64,
-            end: (config::UART_BASE + 100) as u64,
+            vaddr: config::UART_BASE as u64,
+            paddr: config::UART_BASE as u64,
+            len: 100,
             flags: PteFlag::READ | PteFlag::WRITE,
         });
 
         MAPPING.lock().map(Segment {
-            start: config::CLINT_BASE as u64,
-            end: (config::CLINT_BASE + config::CLINT_SIZE) as u64,
+            vaddr: config::CLINT_BASE as u64,
+            paddr: config::CLINT_BASE as u64,
+            len: config::CLINT_SIZE as u64,
             flags: PteFlag::READ | PteFlag::WRITE,
         });
 
         MAPPING.lock().map(Segment {
-            start: config::PLIC_BASE as u64,
-            end: (config::PLIC_BASE + config::PLIC_SIZE) as u64,
+            vaddr: config::PLIC_BASE as u64,
+            paddr: config::PLIC_BASE as u64,
+            len: config::PLIC_SIZE as u64,
             flags: PteFlag::READ | PteFlag::WRITE,
         });
     }
