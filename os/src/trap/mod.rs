@@ -11,8 +11,7 @@ use lazy_static::lazy_static;
 pub mod context;
 
 lazy_static! {
-    static ref M_KERNEL_TRAP_FRAME: TrapFrame = TrapFrame::new();
-    static ref S_KERNEL_TRAP_FRAME: TrapFrame = TrapFrame::new();
+    static ref KERNEL_TRAP_FRAME: TrapFrame = TrapFrame::new();
 }
 
 #[no_mangle]
@@ -34,7 +33,7 @@ pub fn s_irq_handler(sepc: usize, scause: scause::Scause, stval: usize) -> usize
     let mut return_pc = sepc;
     warning!("S=Interrupted: {:?}, {:X} {:X}", scause.cause(), stval, sepc);
 
-    assert_eq!(sepc, S_KERNEL_TRAP_FRAME.epc);
+    assert_eq!(sepc, KERNEL_TRAP_FRAME.epc);
     match scause.cause() {
         sTrap::Interrupt(sInterrupt::SupervisorExternal) => plic::irq_handler(),
         sTrap::Exception(sException::Breakpoint) => return_pc += 2,
@@ -44,12 +43,8 @@ pub fn s_irq_handler(sepc: usize, scause: scause::Scause, stval: usize) -> usize
     return_pc
 }
 
-pub fn sinit() {
-    let sscratch_base = (&*S_KERNEL_TRAP_FRAME as *const TrapFrame) as usize;
-    sscratch::write(sscratch_base);
-}
-
-pub fn minit() {
-    let mscratch_base = (&*M_KERNEL_TRAP_FRAME as *const TrapFrame) as usize;
-    mscratch::write(mscratch_base);
+pub fn init() {
+    let trapframe = (&*KERNEL_TRAP_FRAME as *const TrapFrame) as usize;
+    mscratch::write(trapframe);
+    sscratch::write(trapframe);
 }
