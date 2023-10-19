@@ -3,18 +3,18 @@ use core::marker::Copy;
 
 /* N must be power of two to guarantee the result */
 pub struct RingBuf<T, const N: usize> {
-    buf: [T;N],
+    buf: [T; N],
     head: usize,
     tail: usize,
 }
 
-impl<T: Default + Copy, const N: usize> RingBuf<T,N> {
+impl<T: Default + Copy, const N: usize> RingBuf<T, N> {
     const OK: () = assert!(N & (N - 1) == 0, "N for RingBuf should be power of two");
 
     pub fn new() -> Self {
-        let _ = RingBuf::<T,N>::OK;
+        let _ = RingBuf::<T, N>::OK;
         RingBuf {
-            buf: [T::default();N],
+            buf: [T::default(); N],
             head: 0,
             tail: 0,
         }

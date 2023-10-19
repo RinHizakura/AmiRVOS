@@ -14,5 +14,4 @@ pub fn init() {
         sie::set_stimer();
         sstatus::set_sie();
     }
-    set_next_tick();
 }

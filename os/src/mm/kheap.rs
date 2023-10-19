@@ -1,5 +1,5 @@
-use crate::lock::Locked;
 use crate::config::KERNEL_HEAP_SIZE;
+use crate::lock::Locked;
 use crate::mm::linked_list_allocator::LinkedListAllocator;
 
 #[global_allocator]

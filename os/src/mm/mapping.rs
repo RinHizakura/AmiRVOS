@@ -1,6 +1,6 @@
 use crate::config;
-use crate::mm::page;
 use crate::lock::Locked;
+use crate::mm::page;
 use alloc::{vec, vec::Vec};
 use bitflags::*;
 use core::ops::{Index, IndexMut};
@@ -13,7 +13,7 @@ lazy_static! {
 
 bitflags! {
     #[derive(Default)]
-    struct PteFlag: u8 {
+    pub struct PteFlag: u8 {
     const VALID = 1 << 0;
     const READ = 1 << 1;
     const WRITE = 1 << 2;
@@ -112,13 +112,22 @@ impl Mapping {
     fn map(&mut self, segment: Segment) {
         /* 1. The alignment should be followed
          * 2. No extra check on duplicate vaddr, we should carefully decide it */
-        assert_eq!(align_up!(segment.vaddr, page::PAGE_SIZE as u64), segment.vaddr);
-        assert_eq!(align_up!(segment.paddr, page::PAGE_SIZE as u64), segment.paddr);
+        assert_eq!(
+            align_up!(segment.vaddr, page::PAGE_SIZE as u64),
+            segment.vaddr
+        );
+        assert_eq!(
+            align_up!(segment.paddr, page::PAGE_SIZE as u64),
+            segment.paddr
+        );
 
         let len = align_up!(segment.len, page::PAGE_SIZE as u64);
         for offset in (0..len).step_by(page::PAGE_SIZE) {
-            self.map_one(segment.vaddr + offset, segment.paddr + offset,
-                         segment.flags.bits() | (PteFlag::VALID).bits());
+            self.map_one(
+                segment.vaddr + offset,
+                segment.paddr + offset,
+                segment.flags.bits() | (PteFlag::VALID).bits(),
+            );
         }
     }
 
@@ -269,4 +278,9 @@ pub fn test() {
             assert_eq!(vaddr, paddr);
         }
     }
+}
+
+// TODO: temporary
+pub fn global_satp() -> u64 {
+    MAPPING.lock().root_ppn | (8 << 60)
 }

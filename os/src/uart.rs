@@ -1,7 +1,7 @@
 // Reference: http://byterunner.com/16550.html
-use core::convert::TryInto;
-use crate::utils::ringbuf::RingBuf;
 use crate::lock::Locked;
+use crate::utils::ringbuf::RingBuf;
+use core::convert::TryInto;
 use lazy_static::lazy_static;
 
 // Transmit holding register (write mode)

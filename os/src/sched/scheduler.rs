@@ -1,11 +1,12 @@
-use alloc::vec::Vec;
 use crate::sched::task::{Task, TaskId};
+use alloc::vec::Vec;
 
 pub struct Scheduler {
     /* FIXME: Just for simplicity now, maintaining a
      * 64 bits bitmap for a maximum 64 task in the OS. */
     task_id_map: u64,
     tasks: Vec<Task>,
+    current: Option<Task>,
 }
 
 impl Scheduler {
@@ -13,6 +14,7 @@ impl Scheduler {
         Scheduler {
             task_id_map: u64::MAX,
             tasks: Vec::new(),
+            current: None,
         }
     }
 
@@ -26,11 +28,29 @@ impl Scheduler {
         TaskId(next)
     }
 
-    pub fn spawn(&mut self) -> TaskId {
+    pub fn spawn(&mut self, func: extern "C" fn()) -> TaskId {
         let task_id = self.alloc_task_id();
-        let task = Task::new(task_id);
+        let task = Task::new(func, task_id);
         self.tasks.push(task);
         task_id
     }
-}
 
+    fn context_switch(&mut self, task: Task) -> Option<&Task> {
+        if let Some(prev) = self.current.take() {
+            self.tasks.push(prev);
+        }
+
+        // TODO: set page table for the next task
+        self.current = Some(task);
+        self.current.as_ref()
+    }
+
+    pub fn pick_next(&mut self) -> Option<&Task> {
+        // TODO: Add policy to pick the next task
+        if let Some(task) = self.tasks.pop() {
+            return self.context_switch(task);
+        }
+
+        None
+    }
+}

@@ -1,5 +1,6 @@
 #![no_std] // Disables all standard library
-#![no_main] // Disables emitting the main symbol
+#![no_main]
+// Disables emitting the main symbol
 
 /* TODO: consider to not rely on these features to stay in
  * stable channel */
@@ -8,11 +9,12 @@
 
 extern crate alloc;
 
-use core::arch::{asm, global_asm};
+use core::arch::global_asm;
 
 global_asm!(include_str!("asm/entry.asm"));
 global_asm!(include_str!("asm/mem.asm"));
 global_asm!(include_str!("asm/trap.asm"));
+global_asm!(include_str!("asm/sched.asm"));
 
 #[macro_use]
 mod console;
@@ -22,14 +24,14 @@ mod macros;
 
 mod clint;
 mod config;
-mod trap;
+mod lock;
 mod mm;
-mod sched;
 mod panic;
 mod plic;
+mod sched;
+mod trap;
 mod uart;
 mod utils;
-mod lock;
 
 #[no_mangle] // Disables Rust to change the symbol name
 pub extern "C" fn kinit() {
@@ -50,5 +52,8 @@ pub extern "C" fn kmain() -> ! {
     plic::init();
     sched::init();
 
+    /* Start the timer tick, the scheduler will then start on
+     * accordingly */
+    clint::set_next_tick();
     loop {}
 }

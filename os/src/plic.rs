@@ -22,7 +22,6 @@ pub fn init() {
     plic_sthreshold::write(0);
 }
 
-
 pub fn irq_handler() {
     let irq = plic_sclaim::read();
     /* It is expected that the claim value here is nonzero,
