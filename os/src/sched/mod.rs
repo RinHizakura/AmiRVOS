@@ -42,7 +42,7 @@ pub fn schedule() {
     if let Some(pick) = pick {
         let frame = pick.frame();
         /* TODO: Unlock the lock manually to avoid deadlock. Any
-         * prettire way to do this? */
+         * prettier way to do this? */
         drop(binding);
         unsafe {
             switch_to(frame);
