@@ -92,7 +92,7 @@ pub fn zalloc(order: usize) -> *mut u8 {
 
     if !ret.is_null() {
         /* FIXME: This could be inefficient because we clear memory byte by byte */
-        let size = PAGE_SIZE * (1 << order);
+        let size = order2size!(order);
         for i in 0..size {
             unsafe {
                 (*ret.add(i)) = 0;

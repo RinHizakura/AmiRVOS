@@ -44,3 +44,11 @@ macro_rules! mmap_reg {
         }
     };
 }
+
+#[macro_export]
+macro_rules! order2size {
+    ($order: expr) => {
+        // FIXME: change (1 << 12) to PAGE_SIZE if possible
+        (1 << $order) * (1 << 12)
+    }
+}

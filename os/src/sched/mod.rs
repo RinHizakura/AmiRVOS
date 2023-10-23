@@ -10,7 +10,7 @@ extern "C" {
 }
 
 lazy_static! {
-    static ref SCHEDULER: Locked<Scheduler> = Locked::new(Scheduler::new());
+     static ref SCHEDULER: Locked<Scheduler> = Locked::new(Scheduler::new());
 }
 
 static mut FLAG: u8 = 0;
