@@ -10,7 +10,7 @@ extern "C" {
 }
 
 lazy_static! {
-     static ref SCHEDULER: Locked<Scheduler> = Locked::new(Scheduler::new());
+    static ref SCHEDULER: Locked<Scheduler> = Locked::new(Scheduler::new());
 }
 
 static mut FLAG: u8 = 0;
@@ -31,8 +31,8 @@ pub extern "C" fn initd2() {
 }
 
 pub fn init() {
-    SCHEDULER.lock().spawn(initd1);
-    SCHEDULER.lock().spawn(initd2);
+    SCHEDULER.lock().kspawn(initd1);
+    SCHEDULER.lock().kspawn(initd2);
 }
 
 pub fn schedule() {

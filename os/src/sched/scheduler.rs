@@ -1,6 +1,8 @@
 use crate::sched::task::{Task, TaskId};
 use alloc::vec::Vec;
 
+use super::task::TaskType;
+
 pub struct Scheduler {
     /* FIXME: Just for simplicity now, maintaining a
      * 64 bits bitmap for a maximum 64 task in the OS. */
@@ -28,11 +30,15 @@ impl Scheduler {
         TaskId(next)
     }
 
-    pub fn spawn(&mut self, func: extern "C" fn()) -> TaskId {
+    pub fn spawn(&mut self, task_type: TaskType, func: extern "C" fn()) -> TaskId {
         let task_id = self.alloc_task_id();
-        let task = Task::new(func, task_id);
+        let task = Task::new(func, task_type, task_id);
         self.tasks.push(task);
         task_id
+    }
+
+    pub fn kspawn(&mut self, func: extern "C" fn()) -> TaskId {
+        self.spawn(TaskType::Kernel, func)
     }
 
     fn context_switch(&mut self, task: Task) -> Option<&Task> {

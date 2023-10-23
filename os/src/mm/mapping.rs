@@ -103,10 +103,13 @@ impl Mapping {
         }
     }
 
-    fn activate(&self) {
+    pub fn satp(&self) -> u64 {
         /* 8 for sv39 page table */
-        let new_satp = self.root_ppn | (8 << 60);
-        satp::write(new_satp as usize);
+        self.root_ppn | (8 << 60)
+    }
+
+    fn activate(&self) {
+        satp::write(self.satp() as usize);
     }
 
     fn map(&mut self, segment: Segment) {
@@ -280,7 +283,6 @@ pub fn test() {
     }
 }
 
-// TODO: temporary
-pub fn global_satp() -> u64 {
-    MAPPING.lock().root_ppn | (8 << 60)
+pub fn kernel_satp() -> u64 {
+    MAPPING.lock().satp()
 }
