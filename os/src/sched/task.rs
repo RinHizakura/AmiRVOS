@@ -1,3 +1,5 @@
+use core::mem::size_of;
+
 use crate::mm::mapping::Mapping;
 use crate::mm::{mapping, page};
 use crate::order2size;
@@ -29,15 +31,21 @@ impl Task {
         let stack_size_order = 1;
         let stack_size = order2size!(stack_size_order);
 
+        let frame_size_order = 0;
+        let frame_size = order2size!(frame_size_order);
+
         let task = Task {
             task_type,
             stack: page::alloc(stack_size_order) as *mut u8,
             func,
             pc: 0,
             id,
-            frame: page::alloc(1) as *mut TrapFrame,
+            frame: page::alloc(frame_size_order) as *mut TrapFrame,
             mm: None,
         };
+
+        // The allocated size for TrapFrame should be enough
+        assert!(frame_size > size_of::<TrapFrame>());
 
         let func_paddr = func as usize;
         let func_vaddr = func_paddr;
