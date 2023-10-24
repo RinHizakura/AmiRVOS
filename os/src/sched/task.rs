@@ -5,20 +5,29 @@ use crate::mm::{mapping, page};
 use crate::order2size;
 use crate::trap::context::TrapFrame;
 
+#[derive(Debug)]
 pub enum TaskType {
     Kernel,
     User,
+}
+
+#[derive(Debug)]
+pub enum TaskState {
+    Running,
+    Sleeping,
+    Dead,
 }
 
 #[derive(Clone, Copy)]
 pub struct TaskId(pub u32);
 
 pub struct Task {
+    pub id: TaskId,
     task_type: TaskType,
+    task_state: TaskState,
     stack: *mut u8,
     func: extern "C" fn(),
     pc: usize,
-    id: TaskId,
     frame: *mut TrapFrame,
     mm: Option<Mapping>,
 }
@@ -36,6 +45,7 @@ impl Task {
 
         let task = Task {
             task_type,
+            task_state: TaskState::Running,
             stack: page::alloc(stack_size_order) as *mut u8,
             func,
             pc: 0,
@@ -69,5 +79,20 @@ impl Task {
 
     pub fn frame(&self) -> usize {
         self.frame as usize
+    }
+
+    pub fn get_state(&self) -> &TaskState {
+        &self.task_state
+    }
+
+    pub fn set_state(&mut self, state: TaskState) {
+        self.task_state = state;
+    }
+}
+
+impl Drop for Task {
+    /* TODO: Reclaim memory for the page allocation */
+    fn drop(&mut self) {
+        todo!("reclaimation for task")
     }
 }

@@ -201,6 +201,13 @@ impl Mapping {
     }
 }
 
+impl Drop for Mapping {
+    /* TODO: Reclaim memory for the page allocation */
+    fn drop(&mut self) {
+        todo!("reclaimation for map")
+    }
+}
+
 pub fn init() {
     // map the memory region including kernel code, stack, and heap
 

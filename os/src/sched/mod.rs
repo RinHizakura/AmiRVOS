@@ -21,8 +21,20 @@ pub extern "C" fn initd() {
     }
 }
 
+pub extern "C" fn hello() {
+    println!("Hello");
+
+    /* TODO: Explicitly kill itself with the following two line,
+     * we should do this implicitily. */
+    SCHEDULER.lock().cur_exit();
+    loop {}
+}
+
 pub fn init() {
     SCHEDULER.lock().kspawn(initd);
+    /* Create a task only show some message. Let's see
+     * if we can reclaim it correctly. */
+    SCHEDULER.lock().kspawn(hello);
 }
 
 pub fn schedule() {

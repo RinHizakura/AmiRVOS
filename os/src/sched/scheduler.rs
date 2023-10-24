@@ -1,4 +1,4 @@
-use crate::sched::task::{Task, TaskId};
+use crate::sched::task::{Task, TaskId, TaskState};
 use alloc::vec::Vec;
 
 use super::task::TaskType;
@@ -50,7 +50,11 @@ impl Scheduler {
     pub fn pick_next(&mut self) -> Option<&Task> {
         /* Put current task back */
         if let Some(prev) = self.current.take() {
-            self.tasks.push(prev);
+            /* If this task is still running, put it back to the queue
+             * for the next time slice */
+            if matches!(prev.get_state(), TaskState::Running) {
+                self.tasks.push(prev);
+            }
         }
 
         // TODO: Add policy to pick the next task
@@ -59,5 +63,11 @@ impl Scheduler {
         }
 
         None
+    }
+
+    pub fn cur_exit(&mut self) {
+        if let Some(cur) = &mut self.current {
+            cur.set_state(TaskState::Dead);
+        }
     }
 }
