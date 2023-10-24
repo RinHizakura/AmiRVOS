@@ -13,33 +13,22 @@ lazy_static! {
     static ref SCHEDULER: Locked<Scheduler> = Locked::new(Scheduler::new());
 }
 
-static mut FLAG: u8 = 0;
-
-pub extern "C" fn initd1() {
-    println!("initd started");
-    unsafe {
-        FLAG = 1;
+pub extern "C" fn initd() {
+    /* Since scheduler will loop until it find an executable task, we
+     * make the init task alive as long as the OS running. */
+    loop {
+        println!("initd started");
     }
-    loop {}
-}
-
-pub extern "C" fn initd2() {
-    println!("initd2 started");
-    unsafe { while FLAG == 0 {} }
-    println!("initd2 end");
-    loop {}
 }
 
 pub fn init() {
-    SCHEDULER.lock().kspawn(initd1);
-    SCHEDULER.lock().kspawn(initd2);
+    SCHEDULER.lock().kspawn(initd);
 }
 
 pub fn schedule() {
     let mut binding = SCHEDULER.lock();
-    let pick = binding.pick_next();
 
-    if let Some(pick) = pick {
+    while let Some(pick) = binding.pick_next() {
         let frame = pick.frame();
         /* TODO: Unlock the lock manually to avoid deadlock. Any
          * prettier way to do this? */

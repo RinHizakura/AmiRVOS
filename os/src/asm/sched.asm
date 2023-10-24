@@ -14,7 +14,7 @@ switch_to:
     csrw    satp, a2
 
     # Restore the content from TrapFrame
-    csrr    t6, sscratch
+    csrr    t6, mscratch
     .set    i, 1
     .rept    31
         load_gp     %i, t6

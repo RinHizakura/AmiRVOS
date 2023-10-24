@@ -42,16 +42,17 @@ impl Scheduler {
     }
 
     fn context_switch(&mut self, task: Task) -> Option<&Task> {
-        if let Some(prev) = self.current.take() {
-            self.tasks.push(prev);
-        }
-
         // TODO: set page table for the next task
         self.current = Some(task);
         self.current.as_ref()
     }
 
     pub fn pick_next(&mut self) -> Option<&Task> {
+        /* Put current task back */
+        if let Some(prev) = self.current.take() {
+            self.tasks.push(prev);
+        }
+
         // TODO: Add policy to pick the next task
         if let Some(task) = self.tasks.pop() {
             return self.context_switch(task);
