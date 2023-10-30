@@ -23,11 +23,6 @@ pub extern "C" fn initd() {
 
 pub extern "C" fn hello() {
     println!("Hello");
-
-    /* TODO: Explicitly kill itself with the following two line,
-     * we should do this implicitily. */
-    SCHEDULER.lock().cur_exit();
-    loop {}
 }
 
 pub fn init() {
@@ -38,15 +33,34 @@ pub fn init() {
 }
 
 pub fn schedule() {
-    let mut binding = SCHEDULER.lock();
+    let binding = SCHEDULER.try_lock();
 
-    while let Some(pick) = binding.pick_next() {
-        let frame = pick.frame();
-        /* TODO: Unlock the lock manually to avoid deadlock. Any
-         * prettier way to do this? */
-        drop(binding);
-        unsafe {
-            switch_to(frame);
+    /* FIXME: The scheduler is locked probably because we have a
+     * task which is going to exit. In such case, just simply give
+     * CPU to that task since it is almost done.
+     *
+     * This is somehow unfair and we should consider not to do this in
+     * the future. */
+    if let Some(mut binding) = binding {
+        while let Some(pick) = binding.pick_next() {
+            let frame = pick.frame();
+            /* TODO: Unlock the lock manually to avoid deadlock. Any
+             * prettier way to do this? */
+            drop(binding);
+            unsafe {
+                switch_to(frame);
+            }
         }
     }
+}
+
+/* TODO: Every task should end up here to make scheduler know
+ * to drop the task out. Another strategy could be just leaved
+ * every exit task as zombies and reap it by a certain process? */
+pub extern "C" fn exit_task() {
+    SCHEDULER.lock().cur_exit();
+    /* FIXME: Insert a loop here to wait until got reclaimed. It means a task
+     * could exhaust its time slice just for looping until the next schedule tick.
+     * Any good idea to get reclaim directly? */
+    loop {}
 }

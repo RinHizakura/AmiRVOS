@@ -1,5 +1,6 @@
 use core::mem::size_of;
 
+use super::exit_task;
 use crate::mm::mapping::Mapping;
 use crate::mm::{mapping, page};
 use crate::order2size;
@@ -60,9 +61,14 @@ impl Task {
         let func_paddr = func as usize;
         let func_vaddr = func_paddr;
 
+        let exit_paddr = exit_task as usize;
+        let exit_vaddr = exit_paddr;
+
         unsafe {
             let frame = task.frame;
             (*frame).pc = func_vaddr;
+            /* Use return address for the task reclaim routine, */
+            (*frame).regs[1] = exit_vaddr;
             (*frame).satp = if let Some(map) = &task.mm {
                 // Use the task-owned mapping
                 map.satp()
@@ -94,5 +100,6 @@ impl Drop for Task {
     fn drop(&mut self) {
         page::free(self.stack as *mut u8);
         page::free(self.frame as *mut u8);
+        // TODO: we should also reclaim the task id
     }
 }
