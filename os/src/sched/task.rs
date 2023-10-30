@@ -91,8 +91,8 @@ impl Task {
 }
 
 impl Drop for Task {
-    /* TODO: Reclaim memory for the page allocation */
     fn drop(&mut self) {
-        todo!("reclaimation for task")
+        page::free(self.stack as *mut u8);
+        page::free(self.frame as *mut u8);
     }
 }
