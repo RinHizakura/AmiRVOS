@@ -62,7 +62,7 @@ impl Task {
 
         unsafe {
             let frame = task.frame;
-            (*frame).epc = func_vaddr;
+            (*frame).pc = func_vaddr;
             (*frame).satp = if let Some(map) = &task.mm {
                 // Use the task-owned mapping
                 map.satp()

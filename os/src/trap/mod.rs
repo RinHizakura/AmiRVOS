@@ -2,7 +2,7 @@ use crate::trap::context::TrapFrame;
 use crate::{clint, plic, sched};
 use lazy_static::lazy_static;
 use mcause::{Interrupt as mInterrupt, Trap as mTrap};
-use riscv::register::{mcause, mscratch, scause, sscratch};
+use riscv::register::{mcause, mscratch, scause, sscratch, mtval, mepc, sepc, stval};
 use scause::{Exception as sException, Interrupt as sInterrupt, Trap as sTrap};
 
 pub mod context;
@@ -12,8 +12,11 @@ lazy_static! {
 }
 
 #[no_mangle]
-pub fn m_irq_handler(mepc: usize, mcause: mcause::Mcause, mtval: usize) -> usize {
-    let return_pc = mepc;
+pub fn m_irq_handler() {
+    let mepc = mepc::read();
+    let mtval = mtval::read();
+    let mcause = mcause::read();
+
     warning!("M=Interrupted: {:?}, {:X}", mcause.cause(), mtval);
 
     /* We only aim to handle timer interrupt in machine mode irq handler now, otherwise
@@ -25,12 +28,16 @@ pub fn m_irq_handler(mepc: usize, mcause: mcause::Mcause, mtval: usize) -> usize
         }
         _ => panic!("M=Interrupted: {:?}, {:X}", mcause.cause(), mtval),
     }
-    return_pc
+
+    mepc::write(mepc);
 }
 
 #[no_mangle]
-pub fn s_irq_handler(sepc: usize, scause: scause::Scause, stval: usize) -> usize {
-    let mut return_pc = sepc;
+pub fn s_irq_handler() {
+    let mut sepc = sepc::read();
+    let stval = stval::read();
+    let scause = scause::read();
+
     warning!(
         "S=Interrupted: {:?}, {:X} {:X}",
         scause.cause(),
@@ -38,10 +45,9 @@ pub fn s_irq_handler(sepc: usize, scause: scause::Scause, stval: usize) -> usize
         sepc
     );
 
-    assert_eq!(sepc, KERNEL_TRAP_FRAME.epc);
     match scause.cause() {
         sTrap::Interrupt(sInterrupt::SupervisorExternal) => plic::irq_handler(),
-        sTrap::Exception(sException::Breakpoint) => return_pc += 2,
+        sTrap::Exception(sException::Breakpoint) => sepc += 2,
         _ => panic!(
             "S=Interrupted: {:?}, {:X} {:X}",
             scause.cause(),
@@ -50,7 +56,7 @@ pub fn s_irq_handler(sepc: usize, scause: scause::Scause, stval: usize) -> usize
         ),
     }
 
-    return_pc
+    sepc::write(sepc);
 }
 
 pub fn init() {

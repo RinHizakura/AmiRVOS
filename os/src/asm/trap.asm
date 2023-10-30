@@ -35,12 +35,8 @@ m_trap_vector:
 
     la       sp, _trap_stack_end
 
-    csrr     a0, mepc
-    csrr     a1, mcause
-    csrr     a2, mtval
     call     m_irq_handler
 
-    csrw     mepc, a0
     csrr     t6, mscratch
     .set     i, 1
     .rept    31
@@ -77,18 +73,14 @@ s_trap_vector:
     # store sepc in trapframe
     csrr    t0, sepc
     sd      t0, 264(t5) # sizeof(u64) * 33
+
     # store satp in trapframe
     csrr    t1, satp
     sd      t1, 256(t5) # sizeof(u64) * 32
 
     la       sp, _trap_stack_end
 
-    csrr     a0, sepc
-    csrr     a1, scause
-    csrr     a2, stval
     call     s_irq_handler
-
-    csrw     sepc, a0
 
     # load the trap frame back into t6
     csrr     t6, sscratch

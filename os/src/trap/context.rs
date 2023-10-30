@@ -3,7 +3,7 @@
 pub struct TrapFrame {
     pub regs: [usize; 32], // 0 ~ 255: x1 to x32 registers
     pub satp: usize,       // 256: satp
-    pub epc: usize,        // 264: epc
+    pub pc: usize,         // 264: pc
 }
 
 impl TrapFrame {
@@ -11,7 +11,7 @@ impl TrapFrame {
         TrapFrame {
             regs: [0; 32],
             satp: 0,
-            epc: 0,
+            pc: 0,
         }
     }
 }
