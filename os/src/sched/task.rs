@@ -5,6 +5,8 @@ use crate::mm::mapping::Mapping;
 use crate::mm::{mapping, page};
 use crate::order2size;
 use crate::trap::context::TrapFrame;
+use lazy_static::lazy_static;
+use crate::sched::Locked;
 
 #[derive(Debug)]
 pub enum TaskType {
@@ -22,6 +24,41 @@ pub enum TaskState {
 #[derive(Clone, Copy)]
 pub struct TaskId(pub u32);
 
+struct TaskIdAllocator {
+    /* FIXME: Just for simplicity now, maintaining a
+     * 64 bits bitmap for a maximum 64 task in the OS. */
+    task_id_map: u64,
+}
+
+impl TaskIdAllocator {
+    pub fn new() -> Self {
+        TaskIdAllocator {
+            task_id_map: u64::MAX,
+        }
+    }
+
+    pub fn alloc_task_id(&mut self) -> TaskId {
+        let id_map = self.task_id_map;
+        // FIXME:It means pids are out of use
+        assert!(id_map != 0);
+
+        let next = id_map.trailing_zeros();
+        self.task_id_map &= !(1 << next);
+        TaskId(next)
+    }
+
+    pub fn free_task_id(&mut self, task_id: TaskId) {
+        /* This should be a allocated id */
+        assert!(((self.task_id_map >> task_id.0) & 1) == 0);
+        self.task_id_map |= 1 << task_id.0;
+    }
+}
+
+lazy_static! {
+    static ref TASK_ID_ALLOCATOR: Locked<TaskIdAllocator> =
+        Locked::new(TaskIdAllocator::new());
+}
+
 pub struct Task {
     pub id: TaskId,
     task_type: TaskType,
@@ -37,7 +74,9 @@ unsafe impl Send for Task {}
 unsafe impl Sync for Task {}
 
 impl Task {
-    pub fn new(func: extern "C" fn(), task_type: TaskType, id: TaskId) -> Self {
+    pub fn new(func: extern "C" fn(), task_type: TaskType) -> (Self, TaskId) {
+        let id = TASK_ID_ALLOCATOR.lock().alloc_task_id();
+
         let stack_size_order = 1;
         let stack_size = order2size!(stack_size_order);
 
@@ -80,7 +119,7 @@ impl Task {
             (*frame).regs[2] = task.stack as usize + stack_size;
         }
 
-        task
+        (task, id)
     }
 
     pub fn frame(&self) -> usize {
@@ -100,6 +139,6 @@ impl Drop for Task {
     fn drop(&mut self) {
         page::free(self.stack as *mut u8);
         page::free(self.frame as *mut u8);
-        // TODO: we should also reclaim the task id
+        TASK_ID_ALLOCATOR.lock().free_task_id(self.id);
     }
 }

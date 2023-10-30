@@ -16,8 +16,8 @@ lazy_static! {
 pub extern "C" fn initd() {
     /* Since scheduler will loop until it find an executable task, we
      * make the init task alive as long as the OS running. */
+    println!("initd started");
     loop {
-        println!("initd started");
     }
 }
 
