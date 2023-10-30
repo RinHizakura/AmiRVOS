@@ -2,7 +2,7 @@ use crate::trap::context::TrapFrame;
 use crate::{clint, plic, sched};
 use lazy_static::lazy_static;
 use mcause::{Interrupt as mInterrupt, Trap as mTrap};
-use riscv::register::{mcause, mscratch, scause, sscratch, mtval, mepc, sepc, stval};
+use riscv::register::{mcause, mepc, mscratch, mtval, scause, sepc, sscratch, stval};
 use scause::{Exception as sException, Interrupt as sInterrupt, Trap as sTrap};
 
 pub mod context;
