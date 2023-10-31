@@ -32,6 +32,7 @@ mod sched;
 mod trap;
 mod uart;
 mod utils;
+mod cpu;
 
 #[no_mangle] // Disables Rust to change the symbol name
 pub extern "C" fn kinit() {
@@ -48,9 +49,11 @@ pub extern "C" fn kmain() -> ! {
     print!("Welcome to AmiRVOS world!\n");
 
     mm::init();
-    clint::init();
     plic::init();
     sched::init();
+
+    /* Enable the interrupt for timer */
+    cpu::timer_on();
 
     /* Start the timer tick, the scheduler will then start on
      * accordingly */
