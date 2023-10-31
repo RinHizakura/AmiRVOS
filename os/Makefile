@@ -1,5 +1,11 @@
+ifeq ("$(RELEASE)", "1")
+	MODE := release
+	OPT  := "--$(MODE)"
+else
+	MODE := debug
+	OPT  :=
+endif
 TARGET      := riscv64gc-unknown-none-elf
-MODE        := debug
 KERNEL_FILE := target/$(TARGET)/$(MODE)/os
 
 .PHONY: build asm clean qemu
@@ -7,20 +13,20 @@ KERNEL_FILE := target/$(TARGET)/$(MODE)/os
 all: build
 
 build:
-	cargo build
+	cargo build $(OPT)
 
 clean:
 	@cargo clean
 
 qemu: build
-	@qemu-system-riscv64 \
-		-machine virt \
-                -cpu rv64 \
-		-smp 4     \
-		-m 128M   \
-		-nographic \
-		-bios none \
-		-serial mon:stdio \
+	@qemu-system-riscv64          \
+		-machine virt         \
+		-cpu rv64             \
+		-smp 4                \
+		-m 128M               \
+		-nographic            \
+		-bios none            \
+		-serial mon:stdio     \
 		-kernel $(KERNEL_FILE)
 
 GDBSTUB_COMM := 127.0.0.1:1234
