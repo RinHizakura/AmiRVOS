@@ -21,15 +21,18 @@ pub extern "C" fn initd() {
     }
 }
 
-pub extern "C" fn hello() {
+/* TODO: This should be implement elsewhere and put on disk
+ * image. Now we just embed it in kernel image for simply
+ * testing. */
+pub extern "C" fn user() {
     println!("Hello");
+
+    loop {}
 }
 
 pub fn init() {
     SCHEDULER.lock().kspawn(initd);
-    /* Create a task only show some message. Let's see
-     * if we can reclaim it correctly. */
-    SCHEDULER.lock().kspawn(hello);
+    //SCHEDULER.lock().uspawn(user);
 }
 
 pub fn schedule() {

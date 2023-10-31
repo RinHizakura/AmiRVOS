@@ -59,6 +59,11 @@ lazy_static! {
         Locked::new(TaskIdAllocator::new());
 }
 
+// All task at user space will start at a fixed virtual address
+const TASK_START_ADDR: usize = 0x8000_0000;
+// All stack at user space will start at a fixed virtual address
+const STACK_TOP_ADDR: usize = 0xffff_d000;
+
 pub struct Task {
     pub id: TaskId,
     task_type: TaskType,
@@ -79,34 +84,58 @@ impl Task {
 
         let stack_size_order = 1;
         let stack_size = order2size!(stack_size_order);
+        let stack = page::alloc(stack_size_order) as *mut u8;
 
         let frame_size_order = 0;
         let frame_size = order2size!(frame_size_order);
+        let frame = page::alloc(frame_size_order) as *mut TrapFrame;
 
-        let task = Task {
+        let func_paddr = func as usize;
+        let exit_paddr = exit_task as usize;
+
+        let func_vaddr;
+        let exit_vaddr;
+        let mm;
+        let stack_top;
+        match task_type {
+            TaskType::Kernel => {
+                func_vaddr = func_paddr;
+                exit_vaddr = exit_paddr;
+                mm = None;
+                stack_top =  stack as usize + stack_size;
+            }
+            TaskType::User => {
+                func_vaddr = TASK_START_ADDR;
+                /* TODO: We should assign correct exit point for
+                 * userspace task(possibly doing syscall exit there),
+                 * but now we just not ready for that. */
+                exit_vaddr = exit_paddr;
+                mm = Some(Mapping::new());
+                stack_top = STACK_TOP_ADDR;
+
+                // TODO: Mapping all we need for userspace
+                todo!();
+            }
+        };
+
+        let mut task = Task {
             task_type,
             task_state: TaskState::Running,
-            stack: page::alloc(stack_size_order) as *mut u8,
+            stack,
             func,
             pc: 0,
             id,
-            frame: page::alloc(frame_size_order) as *mut TrapFrame,
-            mm: None,
+            frame,
+            mm,
         };
 
         // The allocated size for TrapFrame should be enough
         assert!(frame_size > size_of::<TrapFrame>());
 
-        let func_paddr = func as usize;
-        let func_vaddr = func_paddr;
-
-        let exit_paddr = exit_task as usize;
-        let exit_vaddr = exit_paddr;
-
         unsafe {
             let frame = task.frame;
             (*frame).pc = func_vaddr;
-            /* Use return address for the task reclaim routine, */
+            /* Use return address for the task reclaim routine */
             (*frame).regs[1] = exit_vaddr;
             (*frame).satp = if let Some(map) = &task.mm {
                 // Use the task-owned mapping
@@ -116,7 +145,7 @@ impl Task {
                 mapping::kernel_satp()
             } as usize;
             // stack
-            (*frame).regs[2] = task.stack as usize + stack_size;
+            (*frame).regs[2] = stack_top;
         }
 
         (task, id)

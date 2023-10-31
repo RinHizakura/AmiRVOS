@@ -16,7 +16,7 @@ impl Scheduler {
         }
     }
 
-    pub fn spawn(&mut self, task_type: TaskType, func: extern "C" fn()) -> TaskId {
+    fn spawn(&mut self, task_type: TaskType, func: extern "C" fn()) -> TaskId {
         let (task, task_id) = Task::new(func, task_type);
         self.tasks.push(task);
         task_id
@@ -24,6 +24,10 @@ impl Scheduler {
 
     pub fn kspawn(&mut self, func: extern "C" fn()) -> TaskId {
         self.spawn(TaskType::Kernel, func)
+    }
+
+    pub fn uspawn(&mut self, func: extern "C" fn()) -> TaskId {
+        self.spawn(TaskType::User, func)
     }
 
     fn context_switch(&mut self, task: Task) -> Option<&Task> {
