@@ -5,6 +5,14 @@ _start:
     csrr    t0, mhartid
     bnez    t0, 3f
 
+    # Initialize global pointer. It is mainly used for linker relaxation.
+    # We need to disable linker relaxation(.norelax) here to prevent initialization
+    # instruction relaxed into a NOP-like instruction (e.g. mv gp, gp).
+    .option push
+    .option norelax
+    la gp, __global_pointer$
+    .option pop
+
     csrw    satp, zero
 
     # .bss section is reset to be zero

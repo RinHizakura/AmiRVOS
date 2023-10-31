@@ -23,6 +23,10 @@ SECTIONS
 
     . = ALIGN(4K);
     _data_start = .;
+    /* TODO: Only the variable ranged in gp +-2048 can be relaxed, thus put
+     * it on the middle of the first 4K. We should consider to put it at
+     * the most intensely used memory area. */
+    __global_pointer$ = . + 4K / 2;
     .data : {
         *(.data .data.*)
     }
