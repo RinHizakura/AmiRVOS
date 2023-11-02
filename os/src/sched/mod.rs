@@ -24,15 +24,16 @@ pub extern "C" fn initd() {
 /* TODO: This should be implement elsewhere and put on disk
  * image. Now we just embed it in kernel image for simply
  * testing. */
+#[repr(align(4096))]
 pub extern "C" fn user() {
-    println!("Hello");
+    //println!("Hello");
 
     loop {}
 }
 
 pub fn init() {
     SCHEDULER.lock().kspawn(initd);
-    //SCHEDULER.lock().uspawn(user);
+    SCHEDULER.lock().uspawn(user);
 }
 
 pub fn schedule() {

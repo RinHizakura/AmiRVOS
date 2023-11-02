@@ -46,7 +46,7 @@ m_trap_vector:
 
     mret
 
-.section .text
+.section .text.trap
 .global s_trap_vector
 # Since the stvec register uses the last two bits to change the trapping
 # mode, we need to align the address of trap vector to ensure available address.

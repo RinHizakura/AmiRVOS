@@ -112,7 +112,7 @@ impl Mapping {
         satp::write(self.satp() as usize);
     }
 
-    fn map(&mut self, segment: Segment) {
+    pub fn map(&mut self, segment: Segment) {
         /* 1. The alignment should be followed
          * 2. No extra check on duplicate vaddr, we should carefully decide it */
         assert_eq!(

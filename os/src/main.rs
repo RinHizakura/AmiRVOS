@@ -6,6 +6,7 @@
  * stable channel */
 #![feature(panic_info_message, alloc_error_handler)]
 #![feature(const_mut_refs)]
+#![feature(fn_align)]
 
 extern crate alloc;
 

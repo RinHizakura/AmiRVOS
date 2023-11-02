@@ -1,7 +1,8 @@
 use core::mem::size_of;
 
 use super::exit_task;
-use crate::mm::mapping::Mapping;
+use crate::mm::mapping::{Mapping, Segment, PteFlag};
+use crate::mm::page::PAGE_SIZE;
 use crate::mm::{mapping, page};
 use crate::order2size;
 use crate::trap::context::TrapFrame;
@@ -110,11 +111,28 @@ impl Task {
                  * userspace task(possibly doing syscall exit there),
                  * but now we just not ready for that. */
                 exit_vaddr = exit_paddr;
-                mm = Some(Mapping::new());
+
+                let mut mapping = Mapping::new();
+                mapping.map(Segment {
+                    vaddr: func_vaddr as u64,
+                    paddr: func_paddr as u64,
+                    /* TODO: we should decide the correct size to map the function*/
+                    len: PAGE_SIZE as u64,
+                    flags: PteFlag::READ | PteFlag::EXECUTE, // | PteFlag::USER,
+                });
+
+                /* TODO: User space's stack should not be restricted too much,
+                 * we can implement page fault handler for demand paging on this. */
+                mapping.map(Segment {
+                    vaddr: (STACK_TOP_ADDR - stack_size) as u64,
+                    paddr: stack as u64,
+                    /* TODO: we should decide the correct size to map the function*/
+                    len: stack_size as u64,
+                    flags: PteFlag::READ | PteFlag::WRITE , // | PteFlag::USER,
+                });
+                mm = Some(mapping);
                 stack_top = STACK_TOP_ADDR;
 
-                // TODO: Mapping all we need for userspace
-                todo!();
             }
         };
 
