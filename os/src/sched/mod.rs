@@ -33,7 +33,7 @@ pub extern "C" fn user() {
 
 pub fn init() {
     SCHEDULER.lock().kspawn(initd);
-    SCHEDULER.lock().uspawn(user);
+    SCHEDULER.lock().kspawn(user);
 }
 
 pub fn schedule() {

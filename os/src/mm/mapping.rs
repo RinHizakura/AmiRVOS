@@ -123,7 +123,6 @@ impl Mapping {
             align_up!(segment.paddr, PAGE_SIZE as u64),
             segment.paddr
         );
-
         let len = align_up!(segment.len, PAGE_SIZE as u64);
         for offset in (0..len).step_by(PAGE_SIZE) {
             self.map_one(

@@ -34,4 +34,4 @@ pub const KERNEL_START_VA: usize = 0xc000_0000;
 // Both kernel and user space map trampoline in the same address to handle trap
 pub const TRAMPOLINE_VA: usize = MAX_VA - PAGE_SIZE;
 // The maximum virtual address for sv39-based memory mapping
-pub const MAX_VA: usize = (1 << 39);
+pub const MAX_VA: usize = 1 << (9 + 9 + 9 + 12 - 1);

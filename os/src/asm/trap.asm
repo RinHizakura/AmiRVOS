@@ -9,7 +9,7 @@
 	ld	x\i, ((\i)*8)(\basereg)
 .endm
 
-.section .text.trampoline
+.section .text
 .global m_trap_vector
 # The irq handler for machine mode will only be used to handle timer interrupt
 # currently. It follows the similar approach of s_trap_vector.
@@ -82,9 +82,12 @@ s_trap_vector:
     csrr    t1, satp
     sd      t1, 256(t5) # sizeof(u64) * 32
 
-    la       sp, _trap_stack_end
+    la      sp, _trap_stack_end
 
-    call     s_irq_handler
+    # FIXME: This is not correct since assembler will make This
+    # indirect call, fix it
+    ld      t2, s_irq_handler
+    jr      t2
 
     # load the trap frame back into t6
     csrr     t6, sscratch

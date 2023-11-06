@@ -1,8 +1,10 @@
+use crate::config::TRAMPOLINE_VA;
 use crate::trap::context::TrapFrame;
 use crate::{clint, plic, sched};
 use lazy_static::lazy_static;
 use mcause::{Interrupt as mInterrupt, Trap as mTrap};
-use riscv::register::{mcause, mepc, mscratch, mtval, scause, sepc, sscratch, stval};
+use riscv::register::{mcause, mepc, mscratch, mtval, mtvec, satp};
+use riscv::register::{scause, sepc, sscratch, stval, stvec};
 use scause::{Exception as sException, Interrupt as sInterrupt, Trap as sTrap};
 
 pub mod context;
@@ -60,7 +62,16 @@ pub fn s_irq_handler() {
 }
 
 pub fn init() {
+    extern "C" {
+        fn m_trap_vector();
+        fn s_trap_vector();
+    }
     let trapframe = (&*KERNEL_TRAP_FRAME as *const TrapFrame) as usize;
     mscratch::write(trapframe);
     sscratch::write(trapframe);
+
+    unsafe {
+        mtvec::write(m_trap_vector as usize, mtvec::TrapMode::Direct);
+        stvec::write(TRAMPOLINE_VA, stvec::TrapMode::Direct);
+    }
 }

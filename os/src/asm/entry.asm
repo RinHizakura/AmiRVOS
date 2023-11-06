@@ -58,23 +58,6 @@ _start:
     li      t2, (1 << 3)
     csrw    medeleg, t2
 
-    # set up page table and corresponding mode for virtual addressing
-    la      t0, boot_page_table
-    srli    t0, t0, 12
-    li      t1, (8 << 60)
-    or      t0, t0, t1
-    csrw    satp, t0
-    sfence.vma
-
-    # mtvec is only store to respond if wrong irq handler is triggered
-    la      t0, m_trap_vector
-    csrw    mtvec, t0
-
-    # In AmiRVOS, we'll prefer to delegate trap to Supervisor mode, so the
-    # expected entry point of handler should be in stvec
-    la      t0, s_trap_vector
-    csrw    stvec, t0
-
     # pc will be set to address of kmain after sret
     # note that MMU will be switched on after sret, so we have to
     # set sepc to the virtual address of kmain
@@ -97,16 +80,3 @@ _start:
 3:
     wfi
     j       3b
-
-# Initialize a page table to map the kernel in booting stage. We use 1G resolution pages
-# to simplify the mapping work with assembly first, and change to 4K resolution pages
-# by Rust codes after switching to supervisor mode later.
-    .section .data
-    .align 12
-boot_page_table:
-    # mapping address 0x0000_0000 to 0x0000_0000, which should set the entry of index 0
-    .quad (0x00000 << 10) | 0xcf
-    .quad 0
-    # mapping address 0x8000_0000 to 0x8000_0000, which should set the entry of index 2
-    .quad (0x80000 << 10) | 0xcf
-    .zero 509 * 8
