@@ -9,7 +9,7 @@
 	ld	x\i, ((\i)*8)(\basereg)
 .endm
 
-.section .text
+.section .text.trampoline
 .global m_trap_vector
 # The irq handler for machine mode will only be used to handle timer interrupt
 # currently. It follows the similar approach of s_trap_vector.
@@ -50,7 +50,7 @@ m_trap_vector:
 
     mret
 
-.section .text.trap
+.section .text.trampoline
 .global s_trap_vector
 # Since the stvec register uses the last two bits to change the trapping
 # mode, we need to align the address of trap vector to ensure available address.

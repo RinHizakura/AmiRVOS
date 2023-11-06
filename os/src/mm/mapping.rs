@@ -217,6 +217,7 @@ pub fn init() {
         static RODATA_START: usize;
         static DATA_START: usize;
         static BSS_START: usize;
+        static TRAMPOLINE_START: usize;
     }
 
     unsafe {
@@ -274,6 +275,15 @@ pub fn init() {
             paddr: PLIC_BASE as u64,
             len: PLIC_SIZE as u64,
             flags: PteFlag::READ | PteFlag::WRITE,
+        });
+
+        /* The trampoline is a part of text section which we have mapped
+         * before, but we map another here to share with user space. */
+        MAPPING.lock().map(Segment {
+            vaddr: TRAMPOLINE_VA as u64,
+            paddr: TRAMPOLINE_START as u64,
+            len: PAGE_SIZE as u64,
+            flags: PteFlag::EXECUTE | PteFlag::READ,
         });
     }
     MAPPING.lock().activate();

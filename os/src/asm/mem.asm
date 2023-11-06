@@ -21,3 +21,7 @@ DATA_START: .dword _data_start
 .section .rodata
 .global BSS_START
 BSS_START: .dword _bss_start
+
+.section .rodata
+.global TRAMPOLINE_START
+TRAMPOLINE_START: .dword _trampoline_start
