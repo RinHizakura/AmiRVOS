@@ -12,6 +12,7 @@ switch_to:
     # 2. satp
     ld      a2, 256(a0)
     csrw    satp, a2
+    sfence.vma
 
     # Restore the content from TrapFrame
     csrr    t6, mscratch

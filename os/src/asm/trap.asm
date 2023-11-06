@@ -38,6 +38,10 @@ m_trap_vector:
     call     m_irq_handler
 
     csrr     t6, mscratch
+
+    ld       t1, 256(t6)
+    csrw     satp, t1
+
     .set     i, 1
     .rept    31
         load_gp   %i, t6
@@ -84,6 +88,9 @@ s_trap_vector:
 
     # load the trap frame back into t6
     csrr     t6, sscratch
+
+    ld       t1, 256(t6)
+    csrw     satp, t1
 
     # restore registers x1 ~ x31 in trapframe
     .set     i, 1

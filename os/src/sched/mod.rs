@@ -45,16 +45,20 @@ pub fn schedule() {
      *
      * This is somehow unfair and we should consider not to do this in
      * the future. */
+    let mut frame = None;
+
     if let Some(mut binding) = binding {
         while let Some(pick) = binding.pick_next() {
-            let frame = pick.frame();
-            /* TODO: Unlock the lock manually to avoid deadlock. Any
-             * prettier way to do this? */
-            drop(binding);
-            unsafe {
-                switch_to(frame);
-            }
+            frame = Some(pick.frame());
+            break;
         }
+    }
+
+    assert!(frame.is_some());
+
+    unsafe {
+        println!("switch to");
+        switch_to(frame.unwrap());
     }
 }
 
