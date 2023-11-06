@@ -54,11 +54,10 @@ pub fn schedule() {
         }
     }
 
-    assert!(frame.is_some());
-
-    unsafe {
-        println!("switch to");
-        switch_to(frame.unwrap());
+    if let Some(frame) = frame {
+        unsafe {
+            switch_to(frame);
+        }
     }
 }
 
