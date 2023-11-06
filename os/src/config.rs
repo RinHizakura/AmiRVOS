@@ -1,3 +1,6 @@
+// 4KB page
+pub const PAGE_SIZE: usize = 1 << 12;
+
 // DRAM start from 0x80000000
 pub const DRAM_BASE: usize = 0x8000_0000;
 // Assuming that we have at least 128M RAM to be used
@@ -20,3 +23,15 @@ pub const CLINT_SIZE: usize = 0x10000;
 pub const PLIC_BASE: usize = 0xc00_0000;
 // mapping region for PLIC
 pub const PLIC_SIZE: usize = 0x21_6000;
+
+/* Memory layout for user space */
+// All task at user space will start at a fixed virtual address
+pub const TASK_START_ADDR: usize = 0x1000;
+// All stack at user space will start at a fixed virtual address
+pub const STACK_TOP_ADDR: usize = 0xa000_0000;
+// The start virtual address for kernel
+pub const KERNEL_START_VA: usize = 0xc000_0000;
+// Both kernel and user space map trampoline in the same address to handle trap
+pub const TRAMPOLINE_VA: usize = MAX_VA - PAGE_SIZE;
+// The maximum virtual address for sv39-based memory mapping
+pub const MAX_VA: usize = (1 << 39) - 1;

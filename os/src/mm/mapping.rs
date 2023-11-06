@@ -1,4 +1,4 @@
-use crate::config;
+use crate::config::*;
 use crate::lock::Locked;
 use crate::mm::page;
 use alloc::{vec, vec::Vec};
@@ -116,16 +116,16 @@ impl Mapping {
         /* 1. The alignment should be followed
          * 2. No extra check on duplicate vaddr, we should carefully decide it */
         assert_eq!(
-            align_up!(segment.vaddr, page::PAGE_SIZE as u64),
+            align_up!(segment.vaddr, PAGE_SIZE as u64),
             segment.vaddr
         );
         assert_eq!(
-            align_up!(segment.paddr, page::PAGE_SIZE as u64),
+            align_up!(segment.paddr, PAGE_SIZE as u64),
             segment.paddr
         );
 
-        let len = align_up!(segment.len, page::PAGE_SIZE as u64);
-        for offset in (0..len).step_by(page::PAGE_SIZE) {
+        let len = align_up!(segment.len, PAGE_SIZE as u64);
+        for offset in (0..len).step_by(PAGE_SIZE) {
             self.map_one(
                 segment.vaddr + offset,
                 segment.paddr + offset,
@@ -171,7 +171,7 @@ impl Mapping {
     }
 
     fn walk(&mut self, vaddr: u64) -> Option<u64> {
-        let vaddr = align_down!(vaddr, page::PAGE_SIZE as u64);
+        let vaddr = align_down!(vaddr, PAGE_SIZE as u64);
 
         let vpn = [
             (vaddr >> 12) & 0x1ff,
@@ -251,28 +251,28 @@ pub fn init() {
         MAPPING.lock().map(Segment {
             vaddr: KERNEL_END as u64,
             paddr: KERNEL_END as u64,
-            len: config::HIGH_MEMORY as u64 - KERNEL_END as u64,
+            len: HIGH_MEMORY as u64 - KERNEL_END as u64,
             flags: PteFlag::READ | PteFlag::WRITE,
         });
 
         MAPPING.lock().map(Segment {
-            vaddr: config::UART_BASE as u64,
-            paddr: config::UART_BASE as u64,
+            vaddr: UART_BASE as u64,
+            paddr: UART_BASE as u64,
             len: 100,
             flags: PteFlag::READ | PteFlag::WRITE,
         });
 
         MAPPING.lock().map(Segment {
-            vaddr: config::CLINT_BASE as u64,
-            paddr: config::CLINT_BASE as u64,
-            len: config::CLINT_SIZE as u64,
+            vaddr: CLINT_BASE as u64,
+            paddr: CLINT_BASE as u64,
+            len: CLINT_SIZE as u64,
             flags: PteFlag::READ | PteFlag::WRITE,
         });
 
         MAPPING.lock().map(Segment {
-            vaddr: config::PLIC_BASE as u64,
-            paddr: config::PLIC_BASE as u64,
-            len: config::PLIC_SIZE as u64,
+            vaddr: PLIC_BASE as u64,
+            paddr: PLIC_BASE as u64,
+            len: PLIC_SIZE as u64,
             flags: PteFlag::READ | PteFlag::WRITE,
         });
     }
@@ -281,7 +281,7 @@ pub fn init() {
 
 pub fn test() {
     /* simply check if we did linear map the address space */
-    let vaddr = (config::DRAM_BASE + 0x2000) as u64;
+    let vaddr = (DRAM_BASE + 0x2000) as u64;
     match MAPPING.lock().walk(vaddr) {
         None => panic!("walking page table of vaddr {:X} failed!\n", vaddr),
         Some(paddr) => {

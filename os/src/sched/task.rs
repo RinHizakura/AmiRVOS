@@ -1,8 +1,8 @@
 use core::mem::size_of;
 
 use super::exit_task;
+use crate::config::*;
 use crate::mm::mapping::{Mapping, Segment, PteFlag};
-use crate::mm::page::PAGE_SIZE;
 use crate::mm::{mapping, page};
 use crate::order2size;
 use crate::trap::context::TrapFrame;
@@ -59,11 +59,6 @@ lazy_static! {
     static ref TASK_ID_ALLOCATOR: Locked<TaskIdAllocator> =
         Locked::new(TaskIdAllocator::new());
 }
-
-// All task at user space will start at a fixed virtual address
-const TASK_START_ADDR: usize = 0x8000_0000;
-// All stack at user space will start at a fixed virtual address
-const STACK_TOP_ADDR: usize = 0xffff_d000;
 
 pub struct Task {
     pub id: TaskId,
