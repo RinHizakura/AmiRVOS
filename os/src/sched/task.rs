@@ -2,12 +2,13 @@ use core::mem::size_of;
 
 use super::exit_task;
 use crate::config::*;
-use crate::mm::mapping::{Mapping, Segment, PteFlag};
+use crate::mm::mapping::{Mapping, PteFlag, Segment};
 use crate::mm::{mapping, page};
 use crate::order2size;
-use crate::trap::context::TrapFrame;
-use lazy_static::lazy_static;
 use crate::sched::Locked;
+use crate::trap::context::TrapFrame;
+use crate::trap::s_irq_handler;
+use lazy_static::lazy_static;
 
 #[derive(Debug)]
 pub enum TaskType {
@@ -56,8 +57,7 @@ impl TaskIdAllocator {
 }
 
 lazy_static! {
-    static ref TASK_ID_ALLOCATOR: Locked<TaskIdAllocator> =
-        Locked::new(TaskIdAllocator::new());
+    static ref TASK_ID_ALLOCATOR: Locked<TaskIdAllocator> = Locked::new(TaskIdAllocator::new());
 }
 
 pub struct Task {
@@ -76,6 +76,9 @@ unsafe impl Sync for Task {}
 
 impl Task {
     pub fn new(func: extern "C" fn(), task_type: TaskType) -> (Self, TaskId) {
+        extern "C" {
+            static TRAP_STACK_END: usize;
+        }
         let id = TASK_ID_ALLOCATOR.lock().alloc_task_id();
 
         let stack_size_order = 1;
@@ -98,7 +101,7 @@ impl Task {
                 func_vaddr = func_paddr;
                 exit_vaddr = exit_paddr;
                 mm = None;
-                stack_top =  stack as usize + stack_size;
+                stack_top = stack as usize + stack_size;
             }
             TaskType::User => {
                 func_vaddr = TASK_START_ADDR;
@@ -123,11 +126,10 @@ impl Task {
                     paddr: stack as u64,
                     /* TODO: we should decide the correct size to map the function*/
                     len: stack_size as u64,
-                    flags: PteFlag::READ | PteFlag::WRITE , // | PteFlag::USER,
+                    flags: PteFlag::READ | PteFlag::WRITE, // | PteFlag::USER,
                 });
                 mm = Some(mapping);
                 stack_top = STACK_TOP_ADDR;
-
             }
         };
 
@@ -148,16 +150,12 @@ impl Task {
         unsafe {
             let frame = task.frame;
             (*frame).pc = func_vaddr;
+            (*frame).kernel_satp = mapping::kernel_satp() as usize;
+            (*frame).kernel_trap = s_irq_handler as usize;
+            (*frame).kernel_sp = TRAP_STACK_END;
             /* Use return address for the task reclaim routine */
             (*frame).regs[1] = exit_vaddr;
-            (*frame).satp = if let Some(map) = &task.mm {
-                // Use the task-owned mapping
-                map.satp()
-            } else {
-                assert!(matches!(task.task_type, TaskType::Kernel));
-                mapping::kernel_satp()
-            } as usize;
-            // stack
+            /* stack */
             (*frame).regs[2] = stack_top;
         }
 
@@ -166,6 +164,17 @@ impl Task {
 
     pub fn frame(&self) -> usize {
         self.frame as usize
+    }
+
+    pub fn satp(&self) -> usize {
+        let satp = if let Some(map) = &self.mm {
+            // Use the task-owned mapping
+            map.satp()
+        } else {
+            assert!(matches!(self.task_type, TaskType::Kernel));
+            mapping::kernel_satp()
+        };
+        satp as usize
     }
 
     pub fn get_state(&self) -> &TaskState {

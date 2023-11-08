@@ -25,6 +25,7 @@ mod macros;
 
 mod clint;
 mod config;
+mod cpu;
 mod lock;
 mod mm;
 mod panic;
@@ -33,7 +34,6 @@ mod sched;
 mod trap;
 mod uart;
 mod utils;
-mod cpu;
 
 #[no_mangle] // Disables Rust to change the symbol name
 pub extern "C" fn kinit() {

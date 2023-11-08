@@ -1,4 +1,4 @@
-use crate::config::{PAGE_SIZE, HIGH_MEMORY, LOW_MEMORY};
+use crate::config::{HIGH_MEMORY, LOW_MEMORY, PAGE_SIZE};
 use core::ptr::null_mut;
 
 // Page struct flag init with zero to represent a free page

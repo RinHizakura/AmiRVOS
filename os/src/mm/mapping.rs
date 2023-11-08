@@ -115,14 +115,8 @@ impl Mapping {
     pub fn map(&mut self, segment: Segment) {
         /* 1. The alignment should be followed
          * 2. No extra check on duplicate vaddr, we should carefully decide it */
-        assert_eq!(
-            align_up!(segment.vaddr, PAGE_SIZE as u64),
-            segment.vaddr
-        );
-        assert_eq!(
-            align_up!(segment.paddr, PAGE_SIZE as u64),
-            segment.paddr
-        );
+        assert_eq!(align_up!(segment.vaddr, PAGE_SIZE as u64), segment.vaddr);
+        assert_eq!(align_up!(segment.paddr, PAGE_SIZE as u64), segment.paddr);
         let len = align_up!(segment.len, PAGE_SIZE as u64);
         for offset in (0..len).step_by(PAGE_SIZE) {
             self.map_one(

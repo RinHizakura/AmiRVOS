@@ -6,7 +6,7 @@ pub mod scheduler;
 pub mod task;
 
 extern "C" {
-    fn switch_to(frame: usize) -> !;
+    fn switch_to(frame: usize, satp: usize) -> !;
 }
 
 lazy_static! {
@@ -17,8 +17,7 @@ pub extern "C" fn initd() {
     /* Since scheduler will loop until it find an executable task, we
      * make the init task alive as long as the OS running. */
     println!("initd started");
-    loop {
-    }
+    loop {}
 }
 
 /* TODO: This should be implement elsewhere and put on disk
@@ -26,7 +25,7 @@ pub extern "C" fn initd() {
  * testing. */
 #[repr(align(4096))]
 pub extern "C" fn user() {
-    //println!("Hello");
+    println!("Hello");
 
     loop {}
 }
@@ -45,18 +44,18 @@ pub fn schedule() {
      *
      * This is somehow unfair and we should consider not to do this in
      * the future. */
-    let mut frame = None;
+    let mut args = None;
 
     if let Some(mut binding) = binding {
         while let Some(pick) = binding.pick_next() {
-            frame = Some(pick.frame());
+            args = Some((pick.frame(), pick.satp()));
             break;
         }
     }
 
-    if let Some(frame) = frame {
+    if let Some(args) = args {
         unsafe {
-            switch_to(frame);
+            switch_to(args.0, args.1);
         }
     }
 }

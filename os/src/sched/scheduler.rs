@@ -1,24 +1,24 @@
-use crate::sched::task::{Task, TaskState, TaskId};
-use alloc::vec::Vec;
+use crate::sched::task::{Task, TaskId, TaskState};
+use alloc::collections::VecDeque;
 
 use super::task::TaskType;
 
 pub struct Scheduler {
-    tasks: Vec<Task>,
+    tasks: VecDeque<Task>,
     current: Option<Task>,
 }
 
 impl Scheduler {
     pub fn new() -> Self {
         Scheduler {
-            tasks: Vec::new(),
+            tasks: VecDeque::new(),
             current: None,
         }
     }
 
     fn spawn(&mut self, task_type: TaskType, func: extern "C" fn()) -> TaskId {
         let (task, task_id) = Task::new(func, task_type);
-        self.tasks.push(task);
+        self.tasks.push_back(task);
         task_id
     }
 
@@ -42,12 +42,12 @@ impl Scheduler {
             /* If this task is still running, put it back to the queue
              * for the next time slice */
             if matches!(prev.get_state(), TaskState::Running) {
-                self.tasks.push(prev);
+                self.tasks.push_back(prev);
             }
         }
 
         // TODO: Add policy to pick the next task
-        if let Some(task) = self.tasks.pop() {
+        if let Some(task) = self.tasks.pop_front() {
             return self.context_switch(task);
         }
 

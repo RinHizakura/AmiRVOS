@@ -26,21 +26,14 @@ m_trap_vector:
     mv      t5, t6
     csrr    t6, mscratch
     save_gp 31, t5
-    csrw    mscratch, t5
 
-    csrr    t0, mepc
-    sd      t0, 264(t5)
-    csrr    t1, satp
-    sd      t1, 256(t5)
+    csrw    mscratch, t5
 
     la       sp, _trap_stack_end
 
     call     m_irq_handler
 
     csrr     t6, mscratch
-
-    ld       t1, 256(t6)
-    csrw     satp, t1
 
     .set     i, 1
     .rept    31
@@ -74,26 +67,26 @@ s_trap_vector:
     # restore trap frame address back to sscratch
     csrw    sscratch, t5
 
-    # store sepc in trapframe
-    csrr    t0, sepc
-    sd      t0, 264(t5) # sizeof(u64) * 33
+    # load kernel satp address
+    ld    t0, 256(t5)
+    # load kernel trap address
+    ld    t1, 264(t5)
+    # load kernel stack address
+    ld    sp, 272(t5)
 
-    # store satp in trapframe
-    csrr    t1, satp
-    sd      t1, 256(t5) # sizeof(u64) * 32
+    # install kernel satp
+    csrw satp, t0
+    sfence.vma
 
-    la      sp, _trap_stack_end
+    # jump to kernel trap handler
+    jalr      t1
 
-    # FIXME: This is not correct since assembler will make This
-    # indirect call, fix it
-    ld      t2, s_irq_handler
-    jr      t2
+    # kernel trap handler should return the satp for current task
+    csrw     satp, a0
+    sfence.vma
 
     # load the trap frame back into t6
     csrr     t6, sscratch
-
-    ld       t1, 256(t6)
-    csrw     satp, t1
 
     # restore registers x1 ~ x31 in trapframe
     .set     i, 1

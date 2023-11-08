@@ -1,4 +1,5 @@
 use crate::config::TRAMPOLINE_VA;
+use crate::mm::mapping;
 use crate::trap::context::TrapFrame;
 use crate::{clint, plic, sched};
 use lazy_static::lazy_static;
@@ -35,7 +36,7 @@ pub fn m_irq_handler() {
 }
 
 #[no_mangle]
-pub fn s_irq_handler() {
+pub fn s_irq_handler() -> usize {
     let mut sepc = sepc::read();
     let stval = stval::read();
     let scause = scause::read();
@@ -59,6 +60,8 @@ pub fn s_irq_handler() {
     }
 
     sepc::write(sepc);
+
+    mapping::kernel_satp() as usize
 }
 
 pub fn init() {

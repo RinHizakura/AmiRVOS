@@ -1,17 +1,17 @@
 .global switch_to
 switch_to:
     # a0 - address of TrapFrame for current task
+    # a1 - satp for current task
 
     # Use TrapFrame of current task when we switch to it
     csrw    mscratch, a0
+    csrw    sscratch, a0
 
-    # Load register values from TrapFrame
-    # 1. program counter
-    ld      a1, 264(a0)
-    csrw    mepc, a1
-    # 2. satp
-    ld      a2, 256(a0)
-    csrw    satp, a2
+    # Load program counter from TrapFrame
+    ld      t0, 280(a0)
+    csrw    mepc, t0
+    # Load satp
+    csrw    satp, a1
     sfence.vma
 
     # Restore the content from TrapFrame
