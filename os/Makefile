@@ -5,12 +5,18 @@ else
 	MODE := debug
 	OPT  :=
 endif
+
+CURDIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 TARGET      := riscv64gc-unknown-none-elf
 KERNEL_FILE := target/$(TARGET)/$(MODE)/os
+GIT_HOOKS := $(CURDIR)/../.git/hooks/applied
 
 .PHONY: build asm clean qemu
 
-all: build
+all: build $(GIT_HOOKS)
+
+$(GIT_HOOKS):
+	@cd $(CURDIR)/..; scripts/install-git-hooks
 
 build:
 	cargo build $(OPT)
