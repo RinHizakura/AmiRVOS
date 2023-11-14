@@ -16,6 +16,9 @@ pub enum TaskType {
     User,
 }
 
+const USER_MODE: usize = 0;
+const SUPERVISOR_MODE: usize = 1;
+
 #[derive(Debug)]
 pub enum TaskState {
     Running,
@@ -116,7 +119,7 @@ impl Task {
                     paddr: func_paddr as u64,
                     /* TODO: we should decide the correct size to map the function*/
                     len: PAGE_SIZE as u64,
-                    flags: PteFlag::READ | PteFlag::EXECUTE, // | PteFlag::USER,
+                    flags: PteFlag::READ | PteFlag::EXECUTE | PteFlag::USER,
                 });
 
                 /* TODO: User space's stack should not be restricted too much,
@@ -126,7 +129,7 @@ impl Task {
                     paddr: stack as u64,
                     /* TODO: we should decide the correct size to map the function*/
                     len: stack_size as u64,
-                    flags: PteFlag::READ | PteFlag::WRITE, // | PteFlag::USER,
+                    flags: PteFlag::READ | PteFlag::WRITE | PteFlag::USER,
                 });
                 mm = Some(mapping);
                 stack_top = STACK_TOP_ADDR;
@@ -175,6 +178,13 @@ impl Task {
             mapping::kernel_satp()
         };
         satp as usize
+    }
+
+    pub fn mode(&self) -> usize {
+        match self.task_type {
+            TaskType::User => USER_MODE,
+            TaskType::Kernel => SUPERVISOR_MODE,
+        }
     }
 
     pub fn get_state(&self) -> &TaskState {

@@ -6,7 +6,7 @@ pub mod scheduler;
 pub mod task;
 
 extern "C" {
-    fn switch_to(frame: usize, satp: usize) -> !;
+    fn switch_to(frame: usize, satp: usize, mode: usize) -> !;
 }
 
 lazy_static! {
@@ -25,14 +25,14 @@ pub extern "C" fn initd() {
  * testing. */
 #[repr(align(4096))]
 pub extern "C" fn user() {
-    println!("Hello");
+    //println!("Hello");
 
     loop {}
 }
 
 pub fn init() {
     SCHEDULER.lock().kspawn(initd);
-    SCHEDULER.lock().kspawn(user);
+    SCHEDULER.lock().uspawn(user);
 }
 
 pub fn schedule() {
@@ -48,14 +48,14 @@ pub fn schedule() {
 
     if let Some(mut binding) = binding {
         while let Some(pick) = binding.pick_next() {
-            args = Some((pick.frame(), pick.satp()));
+            args = Some((pick.frame(), pick.satp(), pick.mode()));
             break;
         }
     }
 
     if let Some(args) = args {
         unsafe {
-            switch_to(args.0, args.1);
+            switch_to(args.0, args.1, args.2);
         }
     }
 }
