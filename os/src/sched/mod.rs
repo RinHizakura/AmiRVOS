@@ -23,9 +23,17 @@ pub extern "C" fn initd() {
 /* TODO: This should be implement elsewhere and put on disk
  * image. Now we just embed it in kernel image for simply
  * testing. */
-#[repr(align(4096))]
+#[link_section = ".text.user.main"]
 pub extern "C" fn user() {
-    //println!("Hello");
+    extern "C" {
+        fn write(ch: u8) -> !;
+    }
+
+    loop {
+        unsafe {
+            write(b'c');
+        }
+    }
 
     loop {}
 }

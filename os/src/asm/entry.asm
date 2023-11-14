@@ -54,8 +54,8 @@ _start:
     li      t2, 0xffff
     csrw    mideleg, t2
 
-    # delegate ebreak from M-mode to S-mode
-    li      t2, (1 << 3)
+    # delegate all kind of exceptions from M-mode to S-mode
+    li      t2, 0xffff
     csrw    medeleg, t2
 
     # pc will be set to address of kmain after sret

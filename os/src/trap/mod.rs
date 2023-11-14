@@ -50,7 +50,9 @@ pub fn s_irq_handler() -> usize {
 
     match scause.cause() {
         sTrap::Interrupt(sInterrupt::SupervisorExternal) => plic::irq_handler(),
-        sTrap::Exception(sException::Breakpoint) => sepc += 2,
+        sTrap::Exception(sException::UserEnvCall) => {
+            todo!()
+        }
         _ => panic!(
             "S=Interrupted: {:?}, {:X} {:X}",
             scause.cause(),
