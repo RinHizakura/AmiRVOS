@@ -1,10 +1,11 @@
-use crate::config::TRAMPOLINE_VA;
+use crate::config::{TRAMPOLINE_VA, TRAPFRAME_VA};
 use crate::mm::mapping;
 use crate::trap::context::TrapFrame;
 use crate::{clint, plic, sched};
+use core::arch::asm;
 use lazy_static::lazy_static;
 use mcause::{Interrupt as mInterrupt, Trap as mTrap};
-use riscv::register::{mcause, mepc, mscratch, mtval, mtvec, satp};
+use riscv::register::{mcause, mepc, mscratch, mtval, mtvec, satp, sip};
 use riscv::register::{scause, sepc, sscratch, stval, stvec};
 use scause::{Exception as sException, Interrupt as sInterrupt, Trap as sTrap};
 
@@ -22,15 +23,14 @@ pub fn m_irq_handler() {
 
     warning!("M=Interrupted: {:?}, {:X}", mcause.cause(), mtval);
 
-    /* We only aim to handle timer interrupt in machine mode irq handler now, otherwise
-     * they are taken as invalid interrupt.  */
-    match mcause.cause() {
-        mTrap::Interrupt(mInterrupt::MachineTimer) => {
-            clint::set_next_tick();
-            sched::schedule();
-        }
-        _ => panic!("M=Interrupted: {:?}, {:X}", mcause.cause(), mtval),
+    /* We only aim to handle timer interrupt in machine mode irq handler,
+     * otherwise they are taken as invalid interrupt. */
+    if !matches!(mcause.cause(), mTrap::Interrupt(mInterrupt::MachineTimer)) {
+        panic!("M=Interrupted: {:?}, {:X}", mcause.cause(), mtval);
     }
+
+    /* Arrange next timer interrupt */
+    clint::set_next_tick();
 
     mepc::write(mepc);
 }
@@ -50,6 +50,19 @@ pub fn s_irq_handler() -> usize {
 
     match scause.cause() {
         sTrap::Interrupt(sInterrupt::SupervisorExternal) => plic::irq_handler(),
+        sTrap::Interrupt(sInterrupt::SupervisorSoft) => {
+            let sip_val = sip::read().bits() & !2;
+            /* TODO: We write this because sip::write is not supported */
+            unsafe {
+                asm!(
+                    "csrw sip, {x}",
+                    x = in(reg) sip_val,
+                );
+            }
+            /* We should only receive software interrupt from a machine-mode
+             * timer interrupt. Doing context switch accordingly. */
+            sched::schedule();
+        }
         sTrap::Exception(sException::UserEnvCall) => {
             todo!()
         }
@@ -68,15 +81,14 @@ pub fn s_irq_handler() -> usize {
 
 pub fn init() {
     extern "C" {
-        fn m_trap_vector();
-        fn s_trap_vector();
+        fn timervec();
     }
     let trapframe = (&*KERNEL_TRAP_FRAME as *const TrapFrame) as usize;
     mscratch::write(trapframe);
     sscratch::write(trapframe);
 
     unsafe {
-        mtvec::write(m_trap_vector as usize, mtvec::TrapMode::Direct);
+        mtvec::write(timervec as usize, mtvec::TrapMode::Direct);
         stvec::write(TRAMPOLINE_VA, stvec::TrapMode::Direct);
     }
 }

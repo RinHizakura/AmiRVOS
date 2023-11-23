@@ -1,11 +1,14 @@
+use crate::config::{TRAMPOLINE_VA, TRAPFRAME_VA};
 use crate::lock::Locked;
 use crate::sched::scheduler::Scheduler;
+use core::mem;
 use lazy_static::lazy_static;
 
 pub mod scheduler;
 pub mod task;
 
 extern "C" {
+    fn s_trap_vector(frame: usize, satp: usize, mode: usize) -> !;
     fn switch_to(frame: usize, satp: usize, mode: usize) -> !;
 }
 
@@ -43,6 +46,12 @@ pub fn init() {
     SCHEDULER.lock().uspawn(user);
 }
 
+macro_rules! cast_func {
+    ($address:expr, $t:ty) => {
+        mem::transmute::<*const (), $t>($address as _)
+    };
+}
+
 pub fn schedule() {
     let binding = SCHEDULER.try_lock();
 
@@ -63,7 +72,12 @@ pub fn schedule() {
 
     if let Some(args) = args {
         unsafe {
-            switch_to(args.0, args.1, args.2);
+            let switch_to_addr = TRAMPOLINE_VA + (switch_to as usize - s_trap_vector as usize);
+            let switch_to_f = cast_func!(
+                switch_to_addr,
+                extern "C" fn(frame: usize, satp: usize, mode: usize)
+            );
+            switch_to_f(args.0, args.1, args.2);
         }
     }
 }

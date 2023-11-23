@@ -80,6 +80,7 @@ unsafe impl Sync for Task {}
 impl Task {
     pub fn new(func: extern "C" fn(), task_type: TaskType) -> (Self, TaskId) {
         extern "C" {
+            static TRAMPOLINE_START: usize;
             static TRAP_STACK_END: usize;
         }
         let id = TASK_ID_ALLOCATOR.lock().alloc_task_id();
@@ -91,6 +92,7 @@ impl Task {
         let frame_size_order = 0;
         let frame_size = order2size!(frame_size_order);
         let frame = page::alloc(frame_size_order) as *mut TrapFrame;
+        assert_eq!(PAGE_SIZE, frame_size);
 
         let func_paddr = func as usize;
         let exit_paddr = exit_task as usize;
@@ -120,6 +122,20 @@ impl Task {
                     /* TODO: we should decide the correct size to map the function*/
                     len: PAGE_SIZE as u64,
                     flags: PteFlag::READ | PteFlag::EXECUTE | PteFlag::USER,
+                });
+
+                mapping.map(Segment {
+                    vaddr: TRAMPOLINE_VA as u64,
+                    paddr: unsafe { TRAMPOLINE_START as u64 },
+                    len: PAGE_SIZE as u64,
+                    flags: PteFlag::EXECUTE | PteFlag::READ,
+                });
+
+                mapping.map(Segment {
+                    vaddr: TRAPFRAME_VA as u64,
+                    paddr: frame as u64,
+                    len: PAGE_SIZE as u64,
+                    flags: PteFlag::READ | PteFlag::WRITE | PteFlag::USER,
                 });
 
                 /* TODO: User space's stack should not be restricted too much,
@@ -166,7 +182,10 @@ impl Task {
     }
 
     pub fn frame(&self) -> usize {
-        self.frame as usize
+        match self.task_type {
+            TaskType::User => TRAPFRAME_VA,
+            TaskType::Kernel => self.frame as usize,
+        }
     }
 
     pub fn satp(&self) -> usize {

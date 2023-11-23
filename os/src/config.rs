@@ -31,6 +31,8 @@ pub const TASK_START_ADDR: usize = 0x1000;
 pub const STACK_TOP_ADDR: usize = 0xa000_0000;
 // The start virtual address for kernel
 pub const KERNEL_START_VA: usize = 0xc000_0000;
+// Both kernel and user space map trap frame in the same address to handle trap
+pub const TRAPFRAME_VA: usize = TRAMPOLINE_VA - PAGE_SIZE;
 // Both kernel and user space map trampoline in the same address to handle trap
 pub const TRAMPOLINE_VA: usize = MAX_VA - PAGE_SIZE;
 // The maximum virtual address for sv39-based memory mapping

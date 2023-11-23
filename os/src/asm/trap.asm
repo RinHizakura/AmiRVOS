@@ -10,11 +10,11 @@
 .endm
 
 .section .text
-.global m_trap_vector
+.global timervec
 # The irq handler for machine mode will only be used to handle timer interrupt
 # currently. It follows the similar approach of s_trap_vector.
 .align 4
-m_trap_vector:
+timervec:
     csrrw   t6, mscratch, t6
 
     .set      i, 1
@@ -32,6 +32,13 @@ m_trap_vector:
     la       sp, _trap_stack_end
 
     call     m_irq_handler
+
+    # Arrange a supervisor software interrupt after this, and we'll
+    # context switch then.
+    # TODO We should do this in m_irq_handler. The reason that we are
+    # not just because sip::write is not support in riscv library :(
+    li       t0, 2
+    csrw     sip, t0
 
     csrr     t6, mscratch
 
@@ -93,6 +100,42 @@ s_trap_vector:
     .rept    31
         load_gp   %i, t6
         .set      i, i+1
+    .endr
+
+    sret
+
+.global switch_to
+switch_to:
+    # a0 - address of TrapFrame for current task
+    # a1 - satp for current task
+    # a2 - mode bit for current task
+
+    # Load satp first to access the correct trap frame
+    csrw    satp, a1
+    sfence.vma
+
+    # Use TrapFrame of current task when we switch to it
+    csrw    sscratch, a0
+
+    # Load program counter from TrapFrame
+    ld      t0, 280(a0)
+    csrw    sepc, t0
+    # Set priviledge mode according to the mode bit
+    # TODO: Could we write this more simpler?
+    csrr    t0, sstatus
+    li      t1, (1 << 8)
+    not     t1, t1
+    and     t0, t0, t1
+    slli    t1, a2, 8
+    or      t0, t0, t1
+    csrw    sstatus, t0
+
+    # Restore the content from TrapFrame
+    csrr    t6, sscratch
+    .set    i, 1
+    .rept    31
+        load_gp     %i, t6
+        .set        i, i+1
     .endr
 
     sret
