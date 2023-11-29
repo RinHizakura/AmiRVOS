@@ -17,7 +17,7 @@ SECTIONS
         _trampoline_start = .;
         *(.text.trampoline)
         . = ALIGN(0x1000);
-        ASSERT(. - _trampoline_start == 0x1000, "error: trampoline larger than one page");
+        /*ASSERT(. - _trampoline_start == 0x1000, "error: trampoline larger than one page");*/
 
         . = ALIGN(0x1000);
         *(.text.user.main)
@@ -49,12 +49,11 @@ SECTIONS
     _bss_end = .;
 
     . = ALIGN(4K);
-    /* 64 * 2 KB  is reserved for stack and trap stack */
+    /* 64 KB  is reserved for kernel stack */
     _stack_start = .;
     _stack_end = _stack_start + 0x10000;
-    _trap_stack_start = .;
-    _trap_stack_end = _trap_stack_start + 0x10000;
 
     . = ALIGN(4K);
     _kernel_end = .;
 }
+

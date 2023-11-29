@@ -11,12 +11,8 @@ use scause::{Exception as sException, Interrupt as sInterrupt, Trap as sTrap};
 
 pub mod context;
 
-lazy_static! {
-    static ref KERNEL_TRAP_FRAME: TrapFrame = TrapFrame::new();
-}
-
 #[no_mangle]
-pub fn m_irq_handler() {
+pub fn timer_trap_handler() {
     let mepc = mepc::read();
     let mtval = mtval::read();
     let mcause = mcause::read();
@@ -36,7 +32,7 @@ pub fn m_irq_handler() {
 }
 
 #[no_mangle]
-pub fn s_irq_handler() -> usize {
+pub fn kernel_trap_handler() {
     let mut sepc = sepc::read();
     let stval = stval::read();
     let scause = scause::read();
@@ -59,9 +55,8 @@ pub fn s_irq_handler() -> usize {
                     x = in(reg) sip_val,
                 );
             }
-            /* We should only receive software interrupt from a machine-mode
-             * timer interrupt. Doing context switch accordingly. */
-            sched::schedule();
+            /* TODO: We should only receive software interrupt from a machine-mode
+             * timer interrupt. Trigger context switch accordingly. */
         }
         sTrap::Exception(sException::UserEnvCall) => {
             todo!()
@@ -75,20 +70,16 @@ pub fn s_irq_handler() -> usize {
     }
 
     sepc::write(sepc);
-
-    mapping::kernel_satp() as usize
 }
 
 pub fn init() {
     extern "C" {
         fn timervec();
+        fn kernelvec();
     }
-    let trapframe = (&*KERNEL_TRAP_FRAME as *const TrapFrame) as usize;
-    mscratch::write(trapframe);
-    sscratch::write(trapframe);
 
     unsafe {
         mtvec::write(timervec as usize, mtvec::TrapMode::Direct);
-        stvec::write(TRAMPOLINE_VA, stvec::TrapMode::Direct);
+        stvec::write(kernelvec as usize, stvec::TrapMode::Direct);
     }
 }

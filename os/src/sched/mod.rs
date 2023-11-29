@@ -7,10 +7,7 @@ use lazy_static::lazy_static;
 pub mod scheduler;
 pub mod task;
 
-extern "C" {
-    fn s_trap_vector(frame: usize, satp: usize, mode: usize) -> !;
-    fn switch_to(frame: usize, satp: usize, mode: usize) -> !;
-}
+extern "C" {}
 
 lazy_static! {
     static ref SCHEDULER: Locked<Scheduler> = Locked::new(Scheduler::new());
@@ -28,22 +25,13 @@ pub extern "C" fn initd() {
  * testing. */
 #[link_section = ".text.user.main"]
 pub extern "C" fn user() {
-    extern "C" {
-        fn write(ch: u8) -> !;
-    }
-
-    loop {
-        unsafe {
-            write(b'c');
-        }
-    }
-
+    println!("Hi");
     loop {}
 }
 
 pub fn init() {
     SCHEDULER.lock().kspawn(initd);
-    SCHEDULER.lock().uspawn(user);
+    SCHEDULER.lock().kspawn(user);
 }
 
 macro_rules! cast_func {
@@ -52,34 +40,9 @@ macro_rules! cast_func {
     };
 }
 
-pub fn schedule() {
-    let binding = SCHEDULER.try_lock();
-
-    /* FIXME: The scheduler is locked probably because we have a
-     * task which is going to exit. In such case, just simply give
-     * CPU to that task since it is almost done.
-     *
-     * This is somehow unfair and we should consider not to do this in
-     * the future. */
-    let mut args = None;
-
-    if let Some(mut binding) = binding {
-        while let Some(pick) = binding.pick_next() {
-            args = Some((pick.frame(), pick.satp(), pick.mode()));
-            break;
-        }
-    }
-
-    if let Some(args) = args {
-        unsafe {
-            let switch_to_addr = TRAMPOLINE_VA + (switch_to as usize - s_trap_vector as usize);
-            let switch_to_f = cast_func!(
-                switch_to_addr,
-                extern "C" fn(frame: usize, satp: usize, mode: usize)
-            );
-            switch_to_f(args.0, args.1, args.2);
-        }
-    }
+pub fn scheduler() {
+    println!("Start scheduling!");
+    todo!();
 }
 
 /* TODO: Every task should end up here to make scheduler know

@@ -19,6 +19,3 @@ BSS_START: .dword _bss_start
 
 .global TRAMPOLINE_START
 TRAMPOLINE_START: .dword _trampoline_start
-
-.global TRAP_STACK_END
-TRAP_STACK_END: .dword _trap_stack_end

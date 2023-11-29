@@ -58,5 +58,8 @@ pub extern "C" fn kmain() -> ! {
     /* Start the timer tick, the scheduler will then start on
      * accordingly */
     clint::set_next_tick();
-    loop {}
+
+    sched::scheduler();
+
+    panic!("We don't expect to return from scheduler");
 }

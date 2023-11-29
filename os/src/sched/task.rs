@@ -7,7 +7,7 @@ use crate::mm::{mapping, page};
 use crate::order2size;
 use crate::sched::Locked;
 use crate::trap::context::TrapFrame;
-use crate::trap::s_irq_handler;
+use crate::trap::kernel_trap_handler;
 use lazy_static::lazy_static;
 
 #[derive(Debug)]
@@ -81,7 +81,6 @@ impl Task {
     pub fn new(func: extern "C" fn(), task_type: TaskType) -> (Self, TaskId) {
         extern "C" {
             static TRAMPOLINE_START: usize;
-            static TRAP_STACK_END: usize;
         }
         let id = TASK_ID_ALLOCATOR.lock().alloc_task_id();
 
@@ -170,8 +169,9 @@ impl Task {
             let frame = task.frame;
             (*frame).pc = func_vaddr;
             (*frame).kernel_satp = mapping::kernel_satp() as usize;
-            (*frame).kernel_trap = s_irq_handler as usize;
-            (*frame).kernel_sp = TRAP_STACK_END;
+            (*frame).kernel_trap = kernel_trap_handler as usize;
+            // TODO: every task should have their own kernel stack
+            (*frame).kernel_sp = 0;
             /* Use return address for the task reclaim routine */
             (*frame).regs[1] = exit_vaddr;
             /* stack */
