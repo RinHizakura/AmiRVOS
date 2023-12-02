@@ -30,25 +30,26 @@ impl Scheduler {
         self.spawn(TaskType::User, func)
     }
 
-    fn context_switch(&mut self, task: Task) -> Option<&Task> {
-        // TODO: set page table for the next task
-        self.current = Some(task);
-        self.current.as_ref()
-    }
-
-    pub fn pick_next(&mut self) -> Option<&Task> {
-        /* Put current task back */
+    pub fn put_prev(&mut self) {
         if let Some(prev) = self.current.take() {
             /* If this task is still running, put it back to the queue
              * for the next time slice */
             if matches!(prev.get_state(), TaskState::Running) {
                 self.tasks.push_back(prev);
+            } else {
+                // Rust will drop it automatically?
             }
         }
+    }
+
+    pub fn pick_next(&mut self) -> Option<&Task> {
+        /* Put current task back if there's any */
+        self.put_prev();
 
         // TODO: Add policy to pick the next task
         if let Some(task) = self.tasks.pop_front() {
-            return self.context_switch(task);
+            self.current = Some(task);
+            return self.current.as_ref();
         }
 
         None

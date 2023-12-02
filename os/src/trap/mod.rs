@@ -11,6 +11,10 @@ use scause::{Exception as sException, Interrupt as sInterrupt, Trap as sTrap};
 
 pub mod context;
 
+lazy_static! {
+    static ref KERNEL_TRAP_FRAME: TrapFrame = TrapFrame::new();
+}
+
 #[no_mangle]
 pub fn timer_trap_handler() {
     let mepc = mepc::read();
@@ -77,9 +81,15 @@ pub fn init() {
         fn timervec();
         fn kernelvec();
     }
+    let trapframe = kernel_trapframe();
+    sscratch::write(trapframe);
 
     unsafe {
         mtvec::write(timervec as usize, mtvec::TrapMode::Direct);
         stvec::write(kernelvec as usize, stvec::TrapMode::Direct);
     }
+}
+
+pub fn kernel_trapframe() -> usize {
+    (&*KERNEL_TRAP_FRAME as *const TrapFrame) as usize
 }

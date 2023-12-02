@@ -1,13 +1,16 @@
 use crate::config::{TRAMPOLINE_VA, TRAPFRAME_VA};
 use crate::lock::Locked;
 use crate::sched::scheduler::Scheduler;
+use crate::trap::kernel_trapframe;
 use core::mem;
 use lazy_static::lazy_static;
 
 pub mod scheduler;
 pub mod task;
 
-extern "C" {}
+extern "C" {
+    fn switch_to(frame: usize);
+}
 
 lazy_static! {
     static ref SCHEDULER: Locked<Scheduler> = Locked::new(Scheduler::new());
@@ -17,6 +20,14 @@ pub extern "C" fn initd() {
     /* Since scheduler will loop until it find an executable task, we
      * make the init task alive as long as the OS running. */
     println!("initd started");
+    do_yield();
+    loop {}
+}
+
+pub extern "C" fn exit() {
+    /* TODO: Create a task that exit directly, so that we can
+     * check that if kernel reclaims it correctly. */
+    println!("exit");
     loop {}
 }
 
@@ -25,12 +36,13 @@ pub extern "C" fn initd() {
  * testing. */
 #[link_section = ".text.user.main"]
 pub extern "C" fn user() {
-    println!("Hi");
+    println!("Hi user");
     loop {}
 }
 
 pub fn init() {
     SCHEDULER.lock().kspawn(initd);
+    SCHEDULER.lock().kspawn(exit);
     SCHEDULER.lock().kspawn(user);
 }
 
@@ -41,8 +53,43 @@ macro_rules! cast_func {
 }
 
 pub fn scheduler() {
-    println!("Start scheduling!");
-    todo!();
+    loop {
+        let binding = SCHEDULER.try_lock();
+
+        /* FIXME: The scheduler is locked probably because we have a
+         * task which is going to exit. In such case, just simply give
+         * CPU to that task since it is almost done.
+         *
+         * This is somehow unfair and we should consider not to do this in
+         * the future. */
+        let mut cur = None;
+
+        if let Some(mut binding) = binding {
+            while let Some(pick) = binding.pick_next() {
+                cur = Some(pick.frame());
+                break;
+            }
+        }
+
+        if let Some(cur) = cur {
+            unsafe {
+                switch_to(cur);
+            }
+        }
+    }
+}
+
+pub fn do_sched() {
+    /* Switch back to the kernel context, which
+     * should be the scheduler */
+    unsafe {
+        switch_to(kernel_trapframe());
+    }
+}
+
+pub fn do_yield() {
+    SCHEDULER.lock().put_prev();
+    do_sched();
 }
 
 /* TODO: Every task should end up here to make scheduler know

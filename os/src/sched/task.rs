@@ -167,13 +167,13 @@ impl Task {
 
         unsafe {
             let frame = task.frame;
-            (*frame).pc = func_vaddr;
             (*frame).kernel_satp = mapping::kernel_satp() as usize;
             (*frame).kernel_trap = kernel_trap_handler as usize;
             // TODO: every task should have their own kernel stack
             (*frame).kernel_sp = 0;
-            /* Use return address for the task reclaim routine */
-            (*frame).regs[1] = exit_vaddr;
+            /* Set return address as the start of task, so we can ret
+             * to there after doing switch_to. */
+            (*frame).regs[1] = func_vaddr;
             /* stack */
             (*frame).regs[2] = stack_top;
         }
