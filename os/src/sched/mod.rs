@@ -1,26 +1,32 @@
 use crate::config::{TRAMPOLINE_VA, TRAPFRAME_VA};
 use crate::lock::Locked;
+use crate::sched::context::TaskContext;
 use crate::sched::scheduler::Scheduler;
-use crate::trap::kernel_trapframe;
 use core::mem;
 use lazy_static::lazy_static;
 
-pub mod scheduler;
-pub mod task;
+mod context;
+mod scheduler;
+mod task;
 
 extern "C" {
-    fn switch_to(frame: usize);
+    fn switch_to(prev: *mut TaskContext, cur: *mut TaskContext);
 }
 
 lazy_static! {
     static ref SCHEDULER: Locked<Scheduler> = Locked::new(Scheduler::new());
+    static ref TASK_CONTEXT: TaskContext = TaskContext::new();
+}
+
+fn kernel_task_context() -> *mut TaskContext {
+    &*TASK_CONTEXT as *const TaskContext as *mut TaskContext
 }
 
 pub extern "C" fn initd() {
     /* Since scheduler will loop until it find an executable task, we
      * make the init task alive as long as the OS running. */
     println!("initd started");
-    do_yield();
+    do_sched();
     loop {}
 }
 
@@ -28,6 +34,7 @@ pub extern "C" fn exit() {
     /* TODO: Create a task that exit directly, so that we can
      * check that if kernel reclaims it correctly. */
     println!("exit");
+    do_sched();
     loop {}
 }
 
@@ -37,6 +44,7 @@ pub extern "C" fn exit() {
 #[link_section = ".text.user.main"]
 pub extern "C" fn user() {
     println!("Hi user");
+    do_sched();
     loop {}
 }
 
@@ -54,51 +62,40 @@ macro_rules! cast_func {
 
 pub fn scheduler() {
     loop {
-        let binding = SCHEDULER.try_lock();
-
-        /* FIXME: The scheduler is locked probably because we have a
-         * task which is going to exit. In such case, just simply give
-         * CPU to that task since it is almost done.
-         *
-         * This is somehow unfair and we should consider not to do this in
-         * the future. */
-        let mut cur = None;
-
-        if let Some(mut binding) = binding {
-            while let Some(pick) = binding.pick_next() {
-                cur = Some(pick.frame());
-                break;
-            }
+        let mut scheduler_lock = SCHEDULER.try_lock();
+        let cur;
+        if let Some(ref mut scheduler) = scheduler_lock {
+            let task = scheduler.pick_next();
+            cur = task.task_context();
+        } else {
+            continue;
         }
+        /* We need to release the lock manually because switch_to()
+         * may not return to scheduler() directly. */
+        drop(scheduler_lock);
 
-        if let Some(cur) = cur {
-            unsafe {
-                switch_to(cur);
-            }
+        unsafe {
+            switch_to(kernel_task_context(), cur);
         }
     }
 }
 
 pub fn do_sched() {
+    let mut scheduler_lock = SCHEDULER.try_lock();
+
+    let prev;
+    if let Some(ref mut scheduler) = scheduler_lock {
+        prev = scheduler.put_prev().task_context();
+    } else {
+        panic!("Fail to get scheduler lock for do_sched()");
+    }
+    /* We need to release the lock manually because switch_to()
+     * may not return to do_sched() directly. */
+    drop(scheduler_lock);
+
     /* Switch back to the kernel context, which
      * should be the scheduler */
     unsafe {
-        switch_to(kernel_trapframe());
+        switch_to(prev, kernel_task_context());
     }
-}
-
-pub fn do_yield() {
-    SCHEDULER.lock().put_prev();
-    do_sched();
-}
-
-/* TODO: Every task should end up here to make scheduler know
- * to drop the task out. Another strategy could be just leaved
- * every exit task as zombies and reap it by a certain process? */
-pub extern "C" fn exit_task() {
-    SCHEDULER.lock().cur_exit();
-    /* FIXME: Insert a loop here to wait until got reclaimed. It means a task
-     * could exhaust its time slice just for looping until the next schedule tick.
-     * Any good idea to get reclaim directly? */
-    loop {}
 }

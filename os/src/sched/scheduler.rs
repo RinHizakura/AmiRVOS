@@ -30,34 +30,24 @@ impl Scheduler {
         self.spawn(TaskType::User, func)
     }
 
-    pub fn put_prev(&mut self) {
+    pub fn put_prev(&mut self) -> &Task {
+        /* Put current task back if there's any */
         if let Some(prev) = self.current.take() {
-            /* If this task is still running, put it back to the queue
-             * for the next time slice */
-            if matches!(prev.get_state(), TaskState::Running) {
-                self.tasks.push_back(prev);
-            } else {
-                // Rust will drop it automatically?
-            }
+            assert!(matches!(prev.get_state(), TaskState::Running));
+            self.tasks.push_back(prev);
+            return self.tasks.back().expect("put_prev()");
         }
+
+        panic!("put_prev() is not expected to fail");
     }
 
-    pub fn pick_next(&mut self) -> Option<&Task> {
-        /* Put current task back if there's any */
-        self.put_prev();
-
+    pub fn pick_next(&mut self) -> &Task {
         // TODO: Add policy to pick the next task
         if let Some(task) = self.tasks.pop_front() {
             self.current = Some(task);
-            return self.current.as_ref();
+            return self.current.as_ref().expect("pick_next()");
         }
 
-        None
-    }
-
-    pub fn cur_exit(&mut self) {
-        if let Some(cur) = &mut self.current {
-            cur.set_state(TaskState::Dead);
-        }
+        panic!("pick_next() is not expected to fail");
     }
 }

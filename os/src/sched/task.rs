@@ -1,12 +1,11 @@
 use core::mem::size_of;
 
-use super::exit_task;
 use crate::config::*;
 use crate::mm::mapping::{Mapping, PteFlag, Segment};
 use crate::mm::{mapping, page};
 use crate::order2size;
+use crate::sched::context::*;
 use crate::sched::Locked;
-use crate::trap::context::TrapFrame;
 use crate::trap::kernel_trap_handler;
 use lazy_static::lazy_static;
 
@@ -67,125 +66,126 @@ pub struct Task {
     pub id: TaskId,
     task_type: TaskType,
     task_state: TaskState,
-    stack: *mut u8,
     func: extern "C" fn(),
-    pc: usize,
-    frame: *mut TrapFrame,
     mm: Option<Mapping>,
+    stack_size: usize,
+
+    stack: *mut u8,
+    context: *mut Context,
 }
 /* FIXME: Get avoid to unsafe if possible */
 unsafe impl Send for Task {}
 unsafe impl Sync for Task {}
 
 impl Task {
-    pub fn new(func: extern "C" fn(), task_type: TaskType) -> (Self, TaskId) {
+    fn init_mm(&mut self) {
         extern "C" {
             static TRAMPOLINE_START: usize;
         }
-        let id = TASK_ID_ALLOCATOR.lock().alloc_task_id();
 
-        let stack_size_order = 1;
-        let stack_size = order2size!(stack_size_order);
-        let stack = page::alloc(stack_size_order) as *mut u8;
+        let frame = self.frame();
+        if let Some(mapping) = &mut self.mm {
+            assert!(matches!(self.task_type, TaskType::User));
 
-        let frame_size_order = 0;
-        let frame_size = order2size!(frame_size_order);
-        let frame = page::alloc(frame_size_order) as *mut TrapFrame;
-        assert_eq!(PAGE_SIZE, frame_size);
+            let func_vaddr = TASK_START_ADDR;
+            let func_paddr = self.func as usize;
 
-        let func_paddr = func as usize;
-        let exit_paddr = exit_task as usize;
+            mapping.map(Segment {
+                vaddr: func_vaddr as u64,
+                paddr: func_paddr as u64,
+                /* TODO: we should decide the correct size to map the function*/
+                len: PAGE_SIZE as u64,
+                flags: PteFlag::READ | PteFlag::EXECUTE | PteFlag::USER,
+            });
 
-        let func_vaddr;
-        let exit_vaddr;
-        let mm;
-        let stack_top;
-        match task_type {
-            TaskType::Kernel => {
-                func_vaddr = func_paddr;
-                exit_vaddr = exit_paddr;
-                mm = None;
-                stack_top = stack as usize + stack_size;
-            }
-            TaskType::User => {
-                func_vaddr = TASK_START_ADDR;
-                /* TODO: We should assign correct exit point for
-                 * userspace task(possibly doing syscall exit there),
-                 * but now we just not ready for that. */
-                exit_vaddr = exit_paddr;
+            mapping.map(Segment {
+                vaddr: TRAMPOLINE_VA as u64,
+                paddr: unsafe { TRAMPOLINE_START as u64 },
+                len: PAGE_SIZE as u64,
+                flags: PteFlag::EXECUTE | PteFlag::READ,
+            });
 
-                let mut mapping = Mapping::new();
-                mapping.map(Segment {
-                    vaddr: func_vaddr as u64,
-                    paddr: func_paddr as u64,
-                    /* TODO: we should decide the correct size to map the function*/
-                    len: PAGE_SIZE as u64,
-                    flags: PteFlag::READ | PteFlag::EXECUTE | PteFlag::USER,
-                });
+            mapping.map(Segment {
+                vaddr: TRAPFRAME_VA as u64,
+                paddr: frame as u64,
+                len: PAGE_SIZE as u64,
+                flags: PteFlag::READ | PteFlag::WRITE | PteFlag::USER,
+            });
 
-                mapping.map(Segment {
-                    vaddr: TRAMPOLINE_VA as u64,
-                    paddr: unsafe { TRAMPOLINE_START as u64 },
-                    len: PAGE_SIZE as u64,
-                    flags: PteFlag::EXECUTE | PteFlag::READ,
-                });
+            /* TODO: User space's stack should not be restricted too much,
+             * we can implement page fault handler for demand paging on this. */
+            mapping.map(Segment {
+                vaddr: (STACK_TOP_ADDR - self.stack_size) as u64,
+                paddr: self.stack as u64,
+                /* TODO: we should decide the correct size to map the function*/
+                len: self.stack_size as u64,
+                flags: PteFlag::READ | PteFlag::WRITE | PteFlag::USER,
+            });
+        }
+    }
 
-                mapping.map(Segment {
-                    vaddr: TRAPFRAME_VA as u64,
-                    paddr: frame as u64,
-                    len: PAGE_SIZE as u64,
-                    flags: PteFlag::READ | PteFlag::WRITE | PteFlag::USER,
-                });
-
-                /* TODO: User space's stack should not be restricted too much,
-                 * we can implement page fault handler for demand paging on this. */
-                mapping.map(Segment {
-                    vaddr: (STACK_TOP_ADDR - stack_size) as u64,
-                    paddr: stack as u64,
-                    /* TODO: we should decide the correct size to map the function*/
-                    len: stack_size as u64,
-                    flags: PteFlag::READ | PteFlag::WRITE | PteFlag::USER,
-                });
-                mm = Some(mapping);
-                stack_top = STACK_TOP_ADDR;
-            }
-        };
-
-        let mut task = Task {
-            task_type,
-            task_state: TaskState::Running,
-            stack,
-            func,
-            pc: 0,
-            id,
-            frame,
-            mm,
-        };
-
-        // The allocated size for TrapFrame should be enough
-        assert!(frame_size > size_of::<TrapFrame>());
-
+    fn init_context(&mut self) {
         unsafe {
-            let frame = task.frame;
+            let frame = self.frame();
             (*frame).kernel_satp = mapping::kernel_satp() as usize;
             (*frame).kernel_trap = kernel_trap_handler as usize;
             // TODO: every task should have their own kernel stack
             (*frame).kernel_sp = 0;
-            /* Set return address as the start of task, so we can ret
-             * to there after doing switch_to. */
-            (*frame).regs[1] = func_vaddr;
-            /* stack */
-            (*frame).regs[2] = stack_top;
         }
+
+        unsafe {
+            let ctx = self.task_context();
+            (*ctx).ra = match self.task_type {
+                TaskType::Kernel => self.func as usize,
+                TaskType::User => TASK_START_ADDR,
+            };
+            (*ctx).sp = match self.task_type {
+                TaskType::Kernel => self.stack as usize + self.stack_size,
+                TaskType::User => STACK_TOP_ADDR,
+            };
+        }
+    }
+
+    pub fn new(func: extern "C" fn(), task_type: TaskType) -> (Self, TaskId) {
+        let id = TASK_ID_ALLOCATOR.lock().alloc_task_id();
+
+        let stack_size_order = 1;
+        let stack_size = order2size!(stack_size_order);
+        let stack = page::alloc(stack_size_order);
+
+        let context_size_order = 0;
+        let context_size = order2size!(context_size_order);
+        let context = page::alloc(context_size_order) as *mut Context;
+        assert!(size_of::<Context>() <= context_size);
+
+        let mm = match task_type {
+            TaskType::Kernel => None,
+            TaskType::User => Some(Mapping::new()),
+        };
+
+        let mut task = Task {
+            id,
+            task_type,
+            task_state: TaskState::Running,
+            func,
+            mm,
+            stack_size,
+            stack,
+            context,
+        };
+
+        task.init_mm();
+        task.init_context();
 
         (task, id)
     }
 
-    pub fn frame(&self) -> usize {
-        match self.task_type {
-            TaskType::User => TRAPFRAME_VA,
-            TaskType::Kernel => self.frame as usize,
-        }
+    pub fn frame(&self) -> *mut TrapFrame {
+        unsafe { &mut (*self.context).trapframe as *mut TrapFrame }
+    }
+
+    pub fn task_context(&self) -> *mut TaskContext {
+        unsafe { &mut (*self.context).task_ctx as *mut TaskContext }
     }
 
     pub fn satp(&self) -> usize {
@@ -217,8 +217,8 @@ impl Task {
 
 impl Drop for Task {
     fn drop(&mut self) {
-        page::free(self.stack as *mut u8);
-        page::free(self.frame as *mut u8);
+        page::free(self.stack);
+        page::free(self.context as *mut u8);
         TASK_ID_ALLOCATOR.lock().free_task_id(self.id);
     }
 }
