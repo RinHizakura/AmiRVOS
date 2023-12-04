@@ -68,7 +68,7 @@ pub fn scheduler() {
             let task = scheduler.pick_next();
             cur = task.task_context();
         } else {
-            continue;
+            panic!("Fail to get scheduler lock for scheduler()");
         }
         /* We need to release the lock manually because switch_to()
          * may not return to scheduler() directly. */

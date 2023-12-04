@@ -42,6 +42,10 @@ impl Scheduler {
     }
 
     pub fn pick_next(&mut self) -> &Task {
+        /* We should only pick a new task by explcitly
+         * put back the current task first(if any). */
+        assert!(self.current.is_none());
+
         // TODO: Add policy to pick the next task
         if let Some(task) = self.tasks.pop_front() {
             self.current = Some(task);
