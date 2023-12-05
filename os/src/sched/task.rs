@@ -1,4 +1,5 @@
 use core::mem::size_of;
+use core::ptr;
 
 use crate::config::*;
 use crate::mm::mapping::{Mapping, PteFlag, Segment};
@@ -68,9 +69,9 @@ pub struct Task {
     task_state: TaskState,
     func: extern "C" fn(),
     mm: Option<Mapping>,
-    stack_size: usize,
 
-    stack: *mut u8,
+    kstack: *mut u8,
+    ustack: *mut u8,
     context: *mut Context,
 }
 /* FIXME: Get avoid to unsafe if possible */
@@ -112,13 +113,11 @@ impl Task {
                 flags: PteFlag::READ | PteFlag::WRITE | PteFlag::USER,
             });
 
-            /* TODO: User space's stack should not be restricted too much,
-             * we can implement page fault handler for demand paging on this. */
             mapping.map(Segment {
-                vaddr: (STACK_TOP_ADDR - self.stack_size) as u64,
-                paddr: self.stack as u64,
+                vaddr: (STACK_TOP_ADDR - PAGE_SIZE) as u64,
+                paddr: self.ustack as u64,
                 /* TODO: we should decide the correct size to map the function*/
-                len: self.stack_size as u64,
+                len: PAGE_SIZE as u64,
                 flags: PteFlag::READ | PteFlag::WRITE | PteFlag::USER,
             });
         }
@@ -140,7 +139,7 @@ impl Task {
                 TaskType::User => TASK_START_ADDR,
             };
             (*ctx).sp = match self.task_type {
-                TaskType::Kernel => self.stack as usize + self.stack_size,
+                TaskType::Kernel => self.kstack as usize + PAGE_SIZE,
                 TaskType::User => STACK_TOP_ADDR,
             };
         }
@@ -149,9 +148,18 @@ impl Task {
     pub fn new(func: extern "C" fn(), task_type: TaskType) -> (Self, TaskId) {
         let id = TASK_ID_ALLOCATOR.lock().alloc_task_id();
 
-        let stack_size_order = 1;
+        let stack_size_order = 0;
         let stack_size = order2size!(stack_size_order);
-        let stack = page::alloc(stack_size_order);
+        assert_eq!(stack_size, PAGE_SIZE);
+
+        let kstack = page::alloc(stack_size_order);
+
+        /* TODO: User space's stack should not be restricted in one page,
+         * we can implement page fault handler for demand paging on this. */
+        let ustack = match task_type {
+            TaskType::Kernel => ptr::null_mut(),
+            TaskType::User => page::alloc(stack_size_order),
+        };
 
         let context_size_order = 0;
         let context_size = order2size!(context_size_order);
@@ -169,8 +177,8 @@ impl Task {
             task_state: TaskState::Running,
             func,
             mm,
-            stack_size,
-            stack,
+            kstack,
+            ustack,
             context,
         };
 
@@ -217,8 +225,12 @@ impl Task {
 
 impl Drop for Task {
     fn drop(&mut self) {
-        page::free(self.stack);
+        page::free(self.kstack);
         page::free(self.context as *mut u8);
+        if !self.ustack.is_null() {
+            assert!(matches!(self.task_type, TaskType::User));
+            page::free(self.ustack);
+        }
         TASK_ID_ALLOCATOR.lock().free_task_id(self.id);
     }
 }
