@@ -1,7 +1,9 @@
 use crate::config::{TRAMPOLINE_VA, TRAPFRAME_VA};
+use crate::cpu;
 use crate::mm::mapping;
 use crate::sched::do_sched;
 use crate::{clint, plic, sched};
+
 use core::arch::asm;
 use lazy_static::lazy_static;
 use mcause::{Interrupt as mInterrupt, Trap as mTrap};
@@ -68,6 +70,45 @@ pub fn kernel_trap_handler() {
     }
 
     sepc::write(sepc);
+}
+
+/* This is the intermediate function which helps touse crate::cpu;
+ * switch from kernel to user space with the
+ * correct context */
+pub fn user_trap_ret() {
+    extern "C" {
+        fn uservec();
+        fn trampoline();
+    }
+
+    let current = sched::current();
+    assert!(!current.is_null());
+
+    /* Disable interrupts until we're goinh to back
+     * in the userspace, or we'll have trouble when
+     * timer interrupt triggers preemption here. */
+    cpu::intr_off();
+
+    /* When getting trap at userspace, it should arrive
+     * the trampoline before entering the true trap handler
+     * directly. This is because kernel and user task are under
+     * different context and different virtual address space. */
+    unsafe {
+        let uservec_va = TRAMPOLINE_VA + (uservec as usize - trampoline as usize);
+        stvec::write(uservec_va, stvec::TrapMode::Direct);
+    }
+
+    unsafe {
+        let frame = (*current).frame();
+        assert!(!frame.is_null());
+
+        (*frame).kernel_satp = satp::read().bits();
+        (*frame).kernel_trap = kernel_trap_handler as usize;
+        // TODO: every task should have their own kernel stack
+        (*frame).kernel_sp = (*current).kstack_top() as usize;
+    }
+
+    todo!();
 }
 
 pub fn init() {

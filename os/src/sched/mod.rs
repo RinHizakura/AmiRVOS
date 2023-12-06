@@ -1,9 +1,8 @@
-use crate::config::{TRAMPOLINE_VA, TRAPFRAME_VA};
 use crate::cpu;
 use crate::lock::Locked;
 use crate::sched::context::TaskContext;
 use crate::sched::scheduler::Scheduler;
-use core::mem;
+use crate::sched::task::Task;
 use lazy_static::lazy_static;
 
 mod context;
@@ -58,20 +57,18 @@ pub extern "C" fn user() {
 pub fn init() {
     SCHEDULER.lock().kspawn(initd);
     SCHEDULER.lock().kspawn(exit);
-    SCHEDULER.lock().kspawn(user);
+    SCHEDULER.lock().uspawn(user);
 }
 
-macro_rules! cast_func {
-    ($address:expr, $t:ty) => {
-        mem::transmute::<*const (), $t>($address as _)
-    };
+pub fn current() -> *mut Task {
+    SCHEDULER.lock().current()
 }
 
 pub fn scheduler() {
     loop {
         /* Since scheduler could be executed after timer interrupt, we
          * need to avoid deadlock by enabling the interrupt again */
-        cpu::timer_on();
+        cpu::intr_on();
 
         let mut scheduler_lock = SCHEDULER.try_lock();
         let cur;

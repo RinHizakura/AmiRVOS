@@ -53,6 +53,6 @@ impl TaskContext {
 
 #[repr(C)]
 pub struct Context {
-    pub task_ctx: TaskContext,
     pub trapframe: TrapFrame,
+    pub task_ctx: TaskContext,
 }

@@ -1,3 +1,5 @@
+use core::ptr;
+
 use crate::sched::task::{Task, TaskId, TaskState};
 use alloc::collections::VecDeque;
 
@@ -28,6 +30,17 @@ impl Scheduler {
 
     pub fn uspawn(&mut self, func: extern "C" fn()) -> TaskId {
         self.spawn(TaskType::User, func)
+    }
+
+    pub fn current(&mut self) -> *mut Task {
+        /* FIXME: Trickly cast reference to raw pointer to
+         * avoid the Rust lifetime check. Are there way to
+         * return a Option<&Task> instead of this? */
+        if let Some(cur) = self.current.as_mut() {
+            cur as *mut Task
+        } else {
+            ptr::null_mut()
+        }
     }
 
     pub fn put_prev(&mut self) -> Option<&Task> {

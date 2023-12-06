@@ -17,7 +17,7 @@ SECTIONS
         _trampoline_start = .;
         *(.text.trampoline)
         . = ALIGN(0x1000);
-        /*ASSERT(. - _trampoline_start == 0x1000, "error: trampoline larger than one page");*/
+        ASSERT(. - _trampoline_start == 0x1000, "error: trampoline larger than one page");
 
         . = ALIGN(0x1000);
         *(.text.user.main)

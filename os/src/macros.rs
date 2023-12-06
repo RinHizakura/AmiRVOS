@@ -10,6 +10,12 @@ macro_rules! align_down {
     };
 }
 
+macro_rules! cast_func {
+    ($address:expr, $t:ty) => {
+        core::mem::transmute::<*const (), $t>($address as _)
+    };
+}
+
 #[macro_export]
 macro_rules! mmap_reg {
     ($name: ident, $addr: expr, $type: ty) => {

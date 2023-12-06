@@ -8,6 +8,7 @@ use crate::order2size;
 use crate::sched::context::*;
 use crate::sched::Locked;
 use crate::trap::kernel_trap_handler;
+use crate::trap::user_trap_ret;
 use lazy_static::lazy_static;
 
 #[derive(Debug)]
@@ -85,7 +86,6 @@ impl Task {
             static TRAMPOLINE_START: usize;
         }
 
-        let frame = self.frame();
         if let Some(mapping) = &mut self.mm {
             assert!(matches!(self.task_type, TaskType::User));
 
@@ -109,7 +109,7 @@ impl Task {
 
             mapping.map(Segment {
                 vaddr: TRAPFRAME_VA as u64,
-                paddr: frame as u64,
+                paddr: self.context as u64,
                 len: PAGE_SIZE as u64,
                 flags: PteFlag::READ | PteFlag::WRITE | PteFlag::USER,
             });
@@ -126,23 +126,15 @@ impl Task {
 
     fn init_context(&mut self) {
         unsafe {
-            let frame = self.frame();
-            (*frame).kernel_satp = mapping::kernel_satp() as usize;
-            (*frame).kernel_trap = kernel_trap_handler as usize;
-            // TODO: every task should have their own kernel stack
-            (*frame).kernel_sp = 0;
-        }
-
-        unsafe {
             let ctx = self.task_context();
             (*ctx).ra = match self.task_type {
                 TaskType::Kernel => self.func as usize,
-                TaskType::User => TASK_START_ADDR,
+                /* For user space task, starting from a special
+                 * kernel function which will sret from kernel to
+                 * user space. */
+                TaskType::User => user_trap_ret as usize,
             };
-            (*ctx).sp = match self.task_type {
-                TaskType::Kernel => self.kstack as usize + PAGE_SIZE,
-                TaskType::User => STACK_TOP_ADDR,
-            };
+            (*ctx).sp = self.kstack_top() as usize;
         }
     }
 
@@ -197,13 +189,18 @@ impl Task {
         unsafe { &mut (*self.context).task_ctx as *mut TaskContext }
     }
 
+    pub fn kstack_top(&self) -> *mut u8 {
+        // Return the pointer to the top of stack
+        unsafe { self.kstack.add(PAGE_SIZE) }
+    }
+
     pub fn satp(&self) -> usize {
         let satp = if let Some(map) = &self.mm {
             // Use the task-owned mapping
             map.satp()
         } else {
             assert!(matches!(self.task_type, TaskType::Kernel));
-            mapping::kernel_satp()
+            panic!("method satp() is not expected to be used by kernel task");
         };
         satp as usize
     }

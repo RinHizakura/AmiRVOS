@@ -292,7 +292,3 @@ pub fn test() {
         }
     }
 }
-
-pub fn kernel_satp() -> u64 {
-    MAPPING.lock().satp()
-}
