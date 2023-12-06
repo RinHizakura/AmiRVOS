@@ -17,6 +17,7 @@ global_asm!(include_str!("asm/mem.asm"));
 global_asm!(include_str!("asm/trap.asm"));
 global_asm!(include_str!("asm/syscall.asm"));
 global_asm!(include_str!("asm/switch.asm"));
+global_asm!(include_str!("asm/utils.asm"));
 
 #[macro_use]
 mod console;

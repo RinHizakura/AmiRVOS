@@ -1,5 +1,6 @@
 use crate::config::{TRAMPOLINE_VA, TRAPFRAME_VA};
 use crate::mm::mapping;
+use crate::sched::do_sched;
 use crate::{clint, plic, sched};
 use core::arch::asm;
 use lazy_static::lazy_static;
@@ -52,8 +53,8 @@ pub fn kernel_trap_handler() {
                     x = in(reg) sip_val,
                 );
             }
-            /* TODO: We should only receive software interrupt from a machine-mode
-             * timer interrupt. Trigger context switch accordingly. */
+
+            do_sched();
         }
         sTrap::Exception(sException::UserEnvCall) => {
             todo!()

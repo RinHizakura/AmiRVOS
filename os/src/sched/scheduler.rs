@@ -30,28 +30,33 @@ impl Scheduler {
         self.spawn(TaskType::User, func)
     }
 
-    pub fn put_prev(&mut self) -> &Task {
+    pub fn put_prev(&mut self) -> Option<&Task> {
         /* Put current task back if there's any */
-        if let Some(prev) = self.current.take() {
+        if let Some(mut prev) = self.current.take() {
             assert!(matches!(prev.get_state(), TaskState::Running));
+            prev.set_state(TaskState::Runnable);
+
             self.tasks.push_back(prev);
-            return self.tasks.back().expect("put_prev()");
+            return self.tasks.back();
         }
 
-        panic!("put_prev() is not expected to fail");
+        None
     }
 
-    pub fn pick_next(&mut self) -> &Task {
+    pub fn pick_next(&mut self) -> Option<&Task> {
         /* We should only pick a new task by explcitly
          * put back the current task first(if any). */
         assert!(self.current.is_none());
 
         // TODO: Add policy to pick the next task
-        if let Some(task) = self.tasks.pop_front() {
+        if let Some(mut task) = self.tasks.pop_front() {
+            assert!(matches!(task.get_state(), TaskState::Runnable));
+            task.set_state(TaskState::Running);
+
             self.current = Some(task);
-            return self.current.as_ref().expect("pick_next()");
+            return self.current.as_ref();
         }
 
-        panic!("pick_next() is not expected to fail");
+        None
     }
 }

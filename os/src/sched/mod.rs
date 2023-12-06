@@ -1,4 +1,5 @@
 use crate::config::{TRAMPOLINE_VA, TRAPFRAME_VA};
+use crate::cpu;
 use crate::lock::Locked;
 use crate::sched::context::TaskContext;
 use crate::sched::scheduler::Scheduler;
@@ -11,6 +12,7 @@ mod task;
 
 extern "C" {
     fn switch_to(prev: *mut TaskContext, cur: *mut TaskContext);
+    fn delay(count: usize);
 }
 
 lazy_static! {
@@ -25,16 +27,18 @@ fn kernel_task_context() -> *mut TaskContext {
 pub extern "C" fn initd() {
     /* Since scheduler will loop until it find an executable task, we
      * make the init task alive as long as the OS running. */
-    println!("initd started");
-    do_sched();
-    loop {}
+    loop {
+        println!("initd started");
+        unsafe {
+            delay(300000000);
+        }
+    }
 }
 
 pub extern "C" fn exit() {
     /* TODO: Create a task that exit directly, so that we can
      * check that if kernel reclaims it correctly. */
     println!("exit");
-    do_sched();
     loop {}
 }
 
@@ -43,9 +47,12 @@ pub extern "C" fn exit() {
  * testing. */
 #[link_section = ".text.user.main"]
 pub extern "C" fn user() {
-    println!("Hi user");
-    do_sched();
-    loop {}
+    loop {
+        println!("Hi user");
+        unsafe {
+            delay(300000000);
+        }
+    }
 }
 
 pub fn init() {
@@ -62,11 +69,18 @@ macro_rules! cast_func {
 
 pub fn scheduler() {
     loop {
+        /* Since scheduler could be executed after timer interrupt, we
+         * need to avoid deadlock by enabling the interrupt again */
+        cpu::timer_on();
+
         let mut scheduler_lock = SCHEDULER.try_lock();
         let cur;
         if let Some(ref mut scheduler) = scheduler_lock {
-            let task = scheduler.pick_next();
-            cur = task.task_context();
+            if let Some(task) = scheduler.pick_next() {
+                cur = task.task_context();
+            } else {
+                panic!("We don't expect failing to pick the task");
+            }
         } else {
             panic!("Fail to get scheduler lock for scheduler()");
         }
@@ -85,7 +99,12 @@ pub fn do_sched() {
 
     let prev;
     if let Some(ref mut scheduler) = scheduler_lock {
-        prev = scheduler.put_prev().task_context();
+        if let Some(task) = scheduler.put_prev() {
+            prev = task.task_context();
+        } else {
+            // Don't sched if we are not at the task context
+            return;
+        }
     } else {
         panic!("Fail to get scheduler lock for do_sched()");
     }

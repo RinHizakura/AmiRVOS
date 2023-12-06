@@ -21,6 +21,7 @@ const SUPERVISOR_MODE: usize = 1;
 
 #[derive(Debug)]
 pub enum TaskState {
+    Runnable,
     Running,
     Sleeping,
     Dead,
@@ -174,7 +175,7 @@ impl Task {
         let mut task = Task {
             id,
             task_type,
-            task_state: TaskState::Running,
+            task_state: TaskState::Runnable,
             func,
             mm,
             kstack,
