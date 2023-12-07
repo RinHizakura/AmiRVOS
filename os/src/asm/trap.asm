@@ -15,6 +15,10 @@
 # currently. It follows the similar approach of s_trap_vector.
 .align 4
 timervec:
+    # Function stack for machine timer interrupt handling
+    # is stored at mscratch
+    csrrw sp, mscratch, sp
+
     addi sp, sp, -(8 * 33)
     .set      i, 0
     .rept     32
@@ -37,6 +41,9 @@ timervec:
         .set      i, i+1
     .endr
     addi sp, sp, (8 * 33)
+
+    # Restore mscratch
+    csrrw sp, mscratch, sp
 
     mret
 

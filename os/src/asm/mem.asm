@@ -17,5 +17,5 @@ DATA_START: .dword _data_start
 .global BSS_START
 BSS_START: .dword _bss_start
 
-.global TRAMPOLINE_START
-TRAMPOLINE_START: .dword _trampoline_start
+.global MTRAP_STACK_END
+MTRAP_STACK_END: .dword _mtrap_stack_end

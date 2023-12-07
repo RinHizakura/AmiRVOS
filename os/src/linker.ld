@@ -49,7 +49,10 @@ SECTIONS
     _bss_end = .;
 
     . = ALIGN(4K);
-    /* 64 KB  is reserved for kernel stack */
+    /* 4KB is reserved for machine timer trap stack, is this enough? */
+    _mtrap_stack_start = .;
+    _mtrap_stack_end = _mtrap_stack_start + 0x1000;
+    /* 64 KB is reserved for kernel stack */
     _stack_start = .;
     _stack_end = _stack_start + 0x10000;
 

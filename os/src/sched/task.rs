@@ -83,7 +83,7 @@ unsafe impl Sync for Task {}
 impl Task {
     fn init_mm(&mut self) {
         extern "C" {
-            static TRAMPOLINE_START: usize;
+            fn trampoline();
         }
 
         if let Some(mapping) = &mut self.mm {
@@ -102,7 +102,7 @@ impl Task {
 
             mapping.map(Segment {
                 vaddr: TRAMPOLINE_VA as u64,
-                paddr: unsafe { TRAMPOLINE_START as u64 },
+                paddr: trampoline as u64,
                 len: PAGE_SIZE as u64,
                 flags: PteFlag::EXECUTE | PteFlag::READ,
             });
@@ -111,7 +111,7 @@ impl Task {
                 vaddr: TRAPFRAME_VA as u64,
                 paddr: self.context as u64,
                 len: PAGE_SIZE as u64,
-                flags: PteFlag::READ | PteFlag::WRITE | PteFlag::USER,
+                flags: PteFlag::READ | PteFlag::WRITE,
             });
 
             mapping.map(Segment {
@@ -135,6 +135,16 @@ impl Task {
                 TaskType::User => user_trap_ret as usize,
             };
             (*ctx).sp = self.kstack_top() as usize;
+        }
+
+        if matches!(self.task_type, TaskType::User) {
+            unsafe {
+                let frame = self.frame();
+                // All user space task are located at the same virtual address
+                (*frame).epc = TASK_START_ADDR;
+                // All user space stack are located at the same virtual address
+                (*frame).set_sp(STACK_TOP_ADDR);
+            }
         }
     }
 

@@ -210,7 +210,7 @@ pub fn init() {
         static RODATA_START: usize;
         static DATA_START: usize;
         static BSS_START: usize;
-        static TRAMPOLINE_START: usize;
+        fn trampoline();
     }
 
     unsafe {
@@ -274,7 +274,7 @@ pub fn init() {
          * before, but we map another here to share with user space. */
         MAPPING.lock().map(Segment {
             vaddr: TRAMPOLINE_VA as u64,
-            paddr: TRAMPOLINE_START as u64,
+            paddr: trampoline as u64,
             len: PAGE_SIZE as u64,
             flags: PteFlag::EXECUTE | PteFlag::READ,
         });

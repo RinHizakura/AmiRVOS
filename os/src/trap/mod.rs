@@ -1,13 +1,12 @@
 use crate::config::{TRAMPOLINE_VA, TRAPFRAME_VA};
 use crate::cpu;
-use crate::mm::mapping;
 use crate::sched::do_sched;
 use crate::{clint, plic, sched};
 
 use core::arch::asm;
 use lazy_static::lazy_static;
 use mcause::{Interrupt as mInterrupt, Trap as mTrap};
-use riscv::register::{mcause, mepc, mscratch, mtval, mtvec, satp, sip};
+use riscv::register::{mcause, mepc, mscratch, mtval, mtvec, satp, sip, sstatus};
 use riscv::register::{scause, sepc, sscratch, stval, stvec};
 use scause::{Exception as sException, Interrupt as sInterrupt, Trap as sTrap};
 
@@ -75,10 +74,11 @@ pub fn kernel_trap_handler() {
 /* This is the intermediate function which helps touse crate::cpu;
  * switch from kernel to user space with the
  * correct context */
-pub fn user_trap_ret() {
+pub fn user_trap_ret() -> ! {
     extern "C" {
-        fn uservec();
         fn trampoline();
+        fn uservec();
+        fn userret();
     }
 
     let current = sched::current();
@@ -104,20 +104,39 @@ pub fn user_trap_ret() {
 
         (*frame).kernel_satp = satp::read().bits();
         (*frame).kernel_trap = kernel_trap_handler as usize;
-        // TODO: every task should have their own kernel stack
         (*frame).kernel_sp = (*current).kstack_top() as usize;
+
+        /* Return to epc after next sret, which is the expected
+         * user space address. */
+        sepc::write((*frame).epc);
+        sscratch::write(TRAPFRAME_VA);
     }
 
-    todo!();
+    unsafe {
+        // Enter user mode after next sret
+        sstatus::set_spp(sstatus::SPP::User);
+        // Enable interrupt after next sret
+        sstatus::set_spie();
+    }
+
+    unsafe {
+        let userret_va = TRAMPOLINE_VA + (userret as usize - trampoline as usize);
+        let userret_f = cast_func!(userret_va, extern "C" fn(satp: usize));
+        userret_f((*current).satp());
+    }
+
+    panic!("user_trap_ret()");
 }
 
 pub fn init() {
     extern "C" {
         fn timervec();
         fn kernelvec();
+        static MTRAP_STACK_END: usize;
     }
 
     unsafe {
+        mscratch::write(MTRAP_STACK_END);
         mtvec::write(timervec as usize, mtvec::TrapMode::Direct);
         stvec::write(kernelvec as usize, stvec::TrapMode::Direct);
     }

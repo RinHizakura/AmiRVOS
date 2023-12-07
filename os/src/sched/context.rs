@@ -9,6 +9,12 @@ pub struct TrapFrame {
     pub epc: usize,         // 280: epc
 }
 
+impl TrapFrame {
+    pub fn set_sp(&mut self, val: usize) {
+        self.regs[2] = val;
+    }
+}
+
 #[repr(C)]
 pub struct TaskContext {
     pub ra: usize,
