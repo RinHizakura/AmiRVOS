@@ -4,8 +4,38 @@ trampoline:
 .align 4
 .global uservec
 uservec:
-    // TODO
-    j uservec
+    # Store trapframe address to t6 and t6 old value to sscratch
+    csrrw t6, sscratch, t6
+
+    # Save all general purpose registers except t6 to trapframe
+    .set      i, 1
+    .rept     30
+       save_gp    %i, t6
+       .set       i, i+1
+    .endr
+    # Save t6 to trapframe
+    mv      t5, t6
+    csrr    t6, sscratch
+    save_gp 31, t5
+
+    # Restore trapframe address of current task back to sscratch
+    csrw    sscratch, t5
+
+    # (Note: Now the trapframe address is stored at t5)
+    # load kernel satp address
+    ld    t0, 256(t5)
+    # load kernel trap address
+    ld    t1, 264(t5)
+    # load kernel stack address
+    ld    sp, 272(t5)
+
+    # install kernel satp
+    csrw satp, t0
+    sfence.vma
+
+    # jump to kernel trap handler
+    jalr      t1
+
 
 .global userret
 userret:
@@ -24,7 +54,7 @@ userret:
     # Restore t6
     mv      t5, t6
     csrr    t6, sscratch
-    save_gp 31, t5
+    load_gp 31, t5
 
     # Set sscratch back to the trapframe of current task
     csrw    sscratch, t5

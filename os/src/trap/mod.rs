@@ -70,6 +70,12 @@ pub fn kernel_trap_handler() {
     sepc::write(sepc);
 }
 
+#[no_mangle]
+pub fn user_trap_handler() {
+    // Handle trap which comes from userspace
+    todo!()
+}
+
 /* This is the intermediate function which helps touse crate::cpu;
  * switch from kernel to user space with the
  * correct context */
@@ -102,7 +108,7 @@ pub fn user_trap_ret() -> ! {
         assert!(!frame.is_null());
 
         (*frame).kernel_satp = satp::read().bits();
-        (*frame).kernel_trap = kernel_trap_handler as usize;
+        (*frame).kernel_trap = user_trap_handler as usize;
         (*frame).kernel_sp = (*current).kstack_top() as usize;
 
         /* Return to epc after next sret, which is the expected
