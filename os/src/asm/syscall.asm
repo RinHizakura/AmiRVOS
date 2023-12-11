@@ -1,6 +1,6 @@
 # TODO: Consider to generate these syscall with auto script
 
-.equ SYS_write, 0
+.set SYS_write, 0
 
 .section .text.user
 .global write

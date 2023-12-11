@@ -1,9 +1,6 @@
 use crate::config::{TRAMPOLINE_VA, TRAPFRAME_VA};
-use crate::cpu;
-use crate::sched::do_sched;
-use crate::{clint, plic, sched};
+use crate::{clint, cpu, plic, sched, syscall};
 
-use core::arch::asm;
 use mcause::{Interrupt as mInterrupt, Trap as mTrap};
 use riscv::register::{mcause, mepc, mscratch, mtval, mtvec, satp, sip, sstatus};
 use riscv::register::{scause, sepc, sscratch, stval, stvec};
@@ -46,15 +43,8 @@ pub fn kernel_trap_handler() {
         sTrap::Interrupt(sInterrupt::SupervisorExternal) => plic::irq_handler(),
         sTrap::Interrupt(sInterrupt::SupervisorSoft) => {
             let sip_val = sip::read().bits() & !2;
-            /* TODO: We write this because sip::write is not supported */
-            unsafe {
-                asm!(
-                    "csrw sip, {x}",
-                    x = in(reg) sip_val,
-                );
-            }
-
-            do_sched();
+            cpu::w_sip(sip_val);
+            sched::do_sched();
         }
         sTrap::Exception(sException::UserEnvCall) => {
             todo!()
@@ -72,8 +62,60 @@ pub fn kernel_trap_handler() {
 
 #[no_mangle]
 pub fn user_trap_handler() {
+    extern "C" {
+        fn kernelvec();
+    }
     // Handle trap which comes from userspace
-    todo!()
+    let sepc = sepc::read();
+    let stval = stval::read();
+    let scause = scause::read();
+
+    warning!(
+        "U=Interrupted: {:?}, {:X} {:X}",
+        scause.cause(),
+        stval,
+        sepc
+    );
+
+    unsafe {
+        // Change to kernel trap handler since we're in the kernel
+        stvec::write(kernelvec as usize, stvec::TrapMode::Direct);
+    }
+
+    let current = sched::current();
+    assert!(!current.is_null());
+
+    let frame;
+    unsafe {
+        /* Save user PC to trapframe because user_trap_ret() use it
+         * as the address to return to the user space. */
+        frame = (*current).frame();
+        assert!(!frame.is_null());
+        (*frame).epc = sepc;
+    }
+
+    match scause.cause() {
+        sTrap::Interrupt(sInterrupt::SupervisorExternal) => plic::irq_handler(),
+        sTrap::Interrupt(sInterrupt::SupervisorSoft) => {
+            let sip_val = sip::read().bits() & !2;
+            cpu::w_sip(sip_val);
+            sched::do_sched();
+        }
+        sTrap::Exception(sException::UserEnvCall) => {
+            // x17's ABI name is a7, which is the number of syscall
+            let syscall_num = unsafe { (*frame).regs[17] };
+            let result = syscall::syscall_handler(syscall_num);
+            todo!();
+        }
+        _ => panic!(
+            "U=Interrupted: {:?}, {:X} {:X}",
+            scause.cause(),
+            stval,
+            sepc
+        ),
+    }
+
+    user_trap_ret();
 }
 
 /* This is the intermediate function which helps touse crate::cpu;

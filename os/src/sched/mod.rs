@@ -46,10 +46,12 @@ pub extern "C" fn exit() {
  * testing. */
 #[link_section = ".text.user.main"]
 pub extern "C" fn user() {
+    extern "C" {
+        fn write();
+    }
     loop {
-        println!("Hi user");
         unsafe {
-            delay(300000000);
+            write();
         }
     }
 }

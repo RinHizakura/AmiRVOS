@@ -34,6 +34,7 @@ mod mm;
 mod panic;
 mod plic;
 mod sched;
+mod syscall;
 mod trap;
 mod uart;
 mod utils;
