@@ -3,11 +3,10 @@ use core::ptr;
 
 use crate::config::*;
 use crate::mm::mapping::{Mapping, PteFlag, Segment};
-use crate::mm::{mapping, page};
+use crate::mm::page;
 use crate::order2size;
 use crate::sched::context::*;
 use crate::sched::Locked;
-use crate::trap::kernel_trap_handler;
 use crate::trap::user_trap_ret;
 use lazy_static::lazy_static;
 
@@ -16,9 +15,6 @@ pub enum TaskType {
     Kernel,
     User,
 }
-
-const USER_MODE: usize = 0;
-const SUPERVISOR_MODE: usize = 1;
 
 #[derive(Debug)]
 pub enum TaskState {
@@ -213,13 +209,6 @@ impl Task {
             panic!("method satp() is not expected to be used by kernel task");
         };
         satp as usize
-    }
-
-    pub fn mode(&self) -> usize {
-        match self.task_type {
-            TaskType::User => USER_MODE,
-            TaskType::Kernel => SUPERVISOR_MODE,
-        }
     }
 
     pub fn get_state(&self) -> &TaskState {

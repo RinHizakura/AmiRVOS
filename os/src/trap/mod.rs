@@ -4,7 +4,6 @@ use crate::sched::do_sched;
 use crate::{clint, plic, sched};
 
 use core::arch::asm;
-use lazy_static::lazy_static;
 use mcause::{Interrupt as mInterrupt, Trap as mTrap};
 use riscv::register::{mcause, mepc, mscratch, mtval, mtvec, satp, sip, sstatus};
 use riscv::register::{scause, sepc, sscratch, stval, stvec};
@@ -32,7 +31,7 @@ pub fn timer_trap_handler() {
 
 #[no_mangle]
 pub fn kernel_trap_handler() {
-    let mut sepc = sepc::read();
+    let sepc = sepc::read();
     let stval = stval::read();
     let scause = scause::read();
 
