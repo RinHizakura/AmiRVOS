@@ -23,3 +23,26 @@ pub fn w_sip(val: usize) {
         );
     }
 }
+
+pub fn r_sstatus() -> usize {
+    /* TODO: We write this because sstatus::read doesn't support to
+     * read raw bits */
+    let val;
+    unsafe {
+        asm!(
+            "csrr {x}, sstatus",
+            x = out(reg) val,
+        );
+    }
+    val
+}
+
+pub fn w_sstatus(val: usize) {
+    /* TODO: We write this because sstatus::write is not supported */
+    unsafe {
+        asm!(
+            "csrw sstatus, {x}",
+            x = in(reg) val,
+        );
+    }
+}

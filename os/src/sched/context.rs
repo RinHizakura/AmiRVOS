@@ -13,6 +13,34 @@ impl TrapFrame {
     pub fn set_sp(&mut self, val: usize) {
         self.regs[2] = val;
     }
+
+    pub fn get_a(&mut self, n: usize) -> usize {
+        match n {
+            0 => self.regs[10],
+            1 => self.regs[11],
+            2 => self.regs[12],
+            3 => self.regs[13],
+            4 => self.regs[14],
+            5 => self.regs[15],
+            6 => self.regs[16],
+            7 => self.regs[17],
+            _ => panic!("Invalid to get argument register {}", n),
+        }
+    }
+
+    pub fn set_a(&mut self, n: usize, val: usize) {
+        match n {
+            0 => self.regs[10] = val,
+            1 => self.regs[11] = val,
+            2 => self.regs[12] = val,
+            3 => self.regs[13] = val,
+            4 => self.regs[14] = val,
+            5 => self.regs[15] = val,
+            6 => self.regs[16] = val,
+            7 => self.regs[17] = val,
+            _ => panic!("Invalid to set argument register {}", n),
+        };
+    }
 }
 
 #[repr(C)]

@@ -22,13 +22,12 @@ pub fn timer_trap_handler() {
 
     /* Arrange next timer interrupt */
     clint::set_next_tick();
-
-    mepc::write(mepc);
 }
 
 #[no_mangle]
 pub fn kernel_trap_handler() {
     let sepc = sepc::read();
+    let sstatus = cpu::r_sstatus();
     let stval = stval::read();
     let scause = scause::read();
 
@@ -57,7 +56,11 @@ pub fn kernel_trap_handler() {
         ),
     }
 
+    /* Since we may overwrite sepc and sstatus for other traps
+     * after doing do_sched(), we should restore those information here
+     * to sret on the correct state. */
     sepc::write(sepc);
+    cpu::w_sstatus(sstatus);
 }
 
 #[no_mangle]
@@ -82,15 +85,10 @@ pub fn user_trap_handler() {
         stvec::write(kernelvec as usize, stvec::TrapMode::Direct);
     }
 
-    let current = sched::current();
-    assert!(!current.is_null());
-
-    let frame;
+    let frame = sched::current_frame();
     unsafe {
         /* Save user PC to trapframe because user_trap_ret() use it
          * as the address to return to the user space. */
-        frame = (*current).frame();
-        assert!(!frame.is_null());
         (*frame).epc = sepc;
     }
 
@@ -101,12 +99,7 @@ pub fn user_trap_handler() {
             cpu::w_sip(sip_val);
             sched::do_sched();
         }
-        sTrap::Exception(sException::UserEnvCall) => {
-            // x17's ABI name is a7, which is the number of syscall
-            let syscall_num = unsafe { (*frame).regs[17] };
-            let result = syscall::syscall_handler(syscall_num);
-            todo!();
-        }
+        sTrap::Exception(sException::UserEnvCall) => syscall::syscall_handler(),
         _ => panic!(
             "U=Interrupted: {:?}, {:X} {:X}",
             scause.cause(),
@@ -129,7 +122,6 @@ pub fn user_trap_ret() -> ! {
     }
 
     let current = sched::current();
-    assert!(!current.is_null());
 
     /* Disable interrupts until we're goinh to back
      * in the userspace, or we'll have trouble when
@@ -145,8 +137,8 @@ pub fn user_trap_ret() -> ! {
         stvec::write(uservec_va, stvec::TrapMode::Direct);
     }
 
+    let frame = sched::current_frame();
     unsafe {
-        let frame = (*current).frame();
         assert!(!frame.is_null());
 
         (*frame).kernel_satp = satp::read().bits();

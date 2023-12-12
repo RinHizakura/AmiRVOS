@@ -41,7 +41,7 @@ uservec:
 userret:
     # a0: satp of the user task which we are going to switch
     csrw satp, a0
-    sfence.vma zero, zero
+    sfence.vma
 
     # Restore registers except t6 from trapframe
     # The trapframe of current user task is stored at sscratch

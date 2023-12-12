@@ -4,6 +4,9 @@ use crate::sched::context::TaskContext;
 use crate::sched::scheduler::Scheduler;
 use crate::sched::task::Task;
 use lazy_static::lazy_static;
+use riscv::register::satp;
+
+use self::context::TrapFrame;
 
 mod context;
 mod scheduler;
@@ -51,7 +54,7 @@ pub extern "C" fn user() {
     }
     loop {
         unsafe {
-            write();
+            //write();
         }
     }
 }
@@ -63,7 +66,19 @@ pub fn init() {
 }
 
 pub fn current() -> *mut Task {
-    SCHEDULER.lock().current()
+    let cur = SCHEDULER.lock().current();
+    assert!(!cur.is_null());
+    cur
+}
+
+pub fn current_frame() -> *mut TrapFrame {
+    let cur = current();
+    let frame;
+    unsafe {
+        frame = (*cur).frame();
+    }
+    assert!(!frame.is_null());
+    frame
 }
 
 pub fn scheduler() {
