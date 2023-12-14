@@ -9,7 +9,8 @@ endif
 CURDIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 TARGET      := riscv64gc-unknown-none-elf
 KERNEL_FILE := target/$(TARGET)/$(MODE)/os
-GIT_HOOKS := $(CURDIR)/../.git/hooks/applied
+RFS_FILE    := root.img
+GIT_HOOKS   := $(CURDIR)/../.git/hooks/applied
 
 .PHONY: build asm clean qemu
 
@@ -33,6 +34,9 @@ qemu: build
 		-nographic            \
 		-bios none            \
 		-serial mon:stdio     \
+		-global virtio-mmio.force-legacy=false                   \
+		-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
+		-drive file=$(RFS_FILE),if=none,format=raw,id=x0         \
 		-kernel $(KERNEL_FILE)
 
 GDBSTUB_COMM := 127.0.0.1:1234

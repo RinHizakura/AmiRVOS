@@ -270,6 +270,13 @@ pub fn init() {
             flags: PteFlag::READ | PteFlag::WRITE,
         });
 
+        MAPPING.lock().map(Segment {
+            vaddr: VIRTIO_BASE as u64,
+            paddr: VIRTIO_BASE as u64,
+            len: VIRTIO_SIZE as u64,
+            flags: PteFlag::READ | PteFlag::WRITE,
+        });
+
         /* The trampoline is a part of text section which we have mapped
          * before, but we map another here to share with user space. */
         MAPPING.lock().map(Segment {

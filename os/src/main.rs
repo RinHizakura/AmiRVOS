@@ -38,6 +38,7 @@ mod syscall;
 mod trap;
 mod uart;
 mod utils;
+mod virtio;
 
 #[no_mangle] // Disables Rust to change the symbol name
 pub extern "C" fn kinit() {
@@ -54,6 +55,7 @@ pub extern "C" fn kmain() -> ! {
     print!("Welcome to AmiRVOS world!\n");
 
     plic::init();
+    virtio::blk::init();
     sched::init();
 
     /* Enable the interrupt for timer */

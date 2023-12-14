@@ -23,6 +23,10 @@ pub const CLINT_SIZE: usize = 0x10000;
 pub const PLIC_BASE: usize = 0xc00_0000;
 // mapping region for PLIC
 pub const PLIC_SIZE: usize = 0x21_6000;
+// VIRTIO start from 0x1000_1000
+pub const VIRTIO_BASE: usize = 0x1000_1000;
+// mapping region for VIRTIO
+pub const VIRTIO_SIZE: usize = 0x1000;
 
 /* Memory layout for user space */
 // All task at user space will start at a fixed virtual address
