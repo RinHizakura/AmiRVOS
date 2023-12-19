@@ -1,12 +1,16 @@
 use super::*;
 
+use crate::cpu;
 use crate::lock::Locked;
 use crate::mm::page::zalloc;
 
+use core::mem::size_of;
 use core::ptr::null_mut;
 use lazy_static::lazy_static;
 
+// This should be a power of 2 value
 const QSIZE: usize = 8;
+const SECTOR_SIZE: usize = 512;
 
 #[repr(C)]
 struct VirtqDesc {
@@ -36,10 +40,44 @@ struct VirtqUsed {
     ring: [VirtqUsedElem; QSIZE],
 }
 
+#[repr(C)]
+#[derive(Copy, Clone)]
+struct VirtioBlkReq {
+    typ: u32,
+    reserved: u32,
+    sector: u64,
+    data: *mut u8,
+    status: u8,
+}
+
+impl Default for VirtioBlkReq {
+    fn default() -> Self {
+        VirtioBlkReq {
+            typ: 0,
+            reserved: 0,
+            sector: 0,
+            data: null_mut(),
+            status: 0,
+        }
+    }
+}
+
 struct Disk {
+    /* The buffer for virtio-blk request descriptor. Note that this is not a
+     * ring buffer, we have to check the "free" array member and know which
+     * descriptor entry is free to be used for the command. Most command will
+     * require a chain of descriptors. */
     desc: *mut VirtqDesc,
     avail: *mut VirtqAvail,
     used: *mut VirtqUsed,
+
+    // The buffer for virtio-blk request header
+    req: [VirtioBlkReq; QSIZE],
+
+    // It marks whether a descriptor entry is free to be used
+    free_desc: [bool; QSIZE],
+    // It marks whether a req entry is free to be used
+    free_req: [bool; QSIZE],
 }
 /* FIXME: Get avoid to unsafe if possible */
 unsafe impl Sync for Disk {}
@@ -51,6 +89,10 @@ impl Disk {
             desc: null_mut(),
             avail: null_mut(),
             used: null_mut(),
+
+            req: [VirtioBlkReq::default(); QSIZE],
+            free_desc: [true; QSIZE],
+            free_req: [true; QSIZE],
         }
     }
 
@@ -59,9 +101,82 @@ impl Disk {
         assert!(self.avail.is_null());
         assert!(self.used.is_null());
 
+        /* Although we expect to have QSIZE of entries for each buffer, we
+         * still allocate a PAGESIZE for these buffer because of the align
+         * requirement.
+         *
+         * TODO: Maybe do some extra check to make sure that the allocated
+         * space is enough to contain QSIZE of entries. */
         self.desc = zalloc(0) as *mut VirtqDesc;
         self.avail = zalloc(0) as *mut VirtqAvail;
         self.used = zalloc(0) as *mut VirtqUsed;
+    }
+
+    fn alloc_req(&mut self) -> Option<usize> {
+        for idx in 0..QSIZE {
+            if self.free_req[idx] == true {
+                self.free_req[idx] = false;
+                return Some(idx);
+            }
+        }
+
+        None
+    }
+
+    fn free_req(&mut self, idx: usize) {
+        if idx >= QSIZE {
+            panic!("Invalid req index to free");
+        }
+
+        if self.free_desc[idx] {
+            panic!("Non allocated req to free");
+        }
+
+        self.free_req[idx] = true;
+    }
+
+    fn alloc_desc(&mut self) -> Option<usize> {
+        for idx in 0..QSIZE {
+            if self.free_desc[idx] == true {
+                self.free_desc[idx] = false;
+                return Some(idx);
+            }
+        }
+
+        None
+    }
+
+    fn free_desc(&mut self, idx: usize) {
+        if idx >= QSIZE {
+            panic!("Invalid descriptor index to free");
+        }
+
+        if self.free_desc[idx] {
+            panic!("Non allocated descriptor to free");
+        }
+
+        self.free_desc[idx] = true;
+    }
+
+    fn alloc_n_desc(&mut self, n: usize) -> Option<[usize; 3]> {
+        let mut descs = [0; 3];
+
+        for cnt in 0..n {
+            if let Some(idx) = self.alloc_desc() {
+                descs[cnt] = idx;
+            } else {
+                for j in 0..cnt {
+                    self.free_desc(descs[j]);
+                }
+                return None;
+            }
+        }
+
+        Some(descs)
+    }
+
+    fn get_desc(&self, idx: usize) -> *mut VirtqDesc {
+        self.desc.wrapping_offset(idx as isize)
     }
 }
 
@@ -160,4 +275,81 @@ pub fn init() {
     /* 8. Set the DRIVER_OK status bit. At this point the device is “live” */
     status |= VIRTIO_CONFIG_S_DRIVER_OK;
     DEV.write(VIRTIO_MMIO_STATUS, status);
+
+    test();
+}
+
+pub fn disk_rw(buf: &[u8], buf_size: usize, offset: usize, is_write: bool) {
+    /* Hold the disk lock in full function scope. It is
+     * not expect to fail acquiring the lock now */
+    let mut disk = DISK.try_lock().expect("DISK try_lock()");
+
+    let sector = offset / SECTOR_SIZE;
+    let req_idx = disk.alloc_req().expect("alloc_req()");
+
+    if is_write {
+        disk.req[req_idx].typ = VIRTIO_BLK_T_OUT;
+    } else {
+        disk.req[req_idx].typ = VIRTIO_BLK_T_IN;
+    }
+    disk.req[req_idx].sector = sector as u64;
+
+    // Allocate 3 descriptors for this command
+    let idxs = disk.alloc_n_desc(3).expect("alloc_n_desc(3)");
+
+    let req_ptr = &disk.req[req_idx] as *const VirtioBlkReq;
+    unsafe {
+        let desc0 = disk.get_desc(idxs[0]);
+        (*desc0).addr = req_ptr as u64;
+        (*desc0).len = size_of::<VirtioBlkReq>() as u32;
+        (*desc0).flags = VRING_DESC_F_NEXT;
+        (*desc0).next = idxs[1] as u16;
+    }
+
+    unsafe {
+        let desc1 = disk.get_desc(idxs[1]);
+        (*desc1).addr = buf.as_ptr() as u64;
+        (*desc1).len = buf_size as u32;
+        (*desc1).flags = if is_write { 0 } else { VRING_DESC_F_WRITE };
+        (*desc1).flags |= VRING_DESC_F_NEXT;
+        (*desc1).next = idxs[2] as u16;
+    }
+
+    /* Set the status field to a invalid value, so we can
+     * observe the change if the device modifies it. */
+    disk.req[req_idx].status = 0xff;
+    unsafe {
+        let status_ptr = &disk.req[req_idx].status as *const u8;
+        let desc2 = disk.get_desc(idxs[2]);
+        (*desc2).addr = status_ptr as u64;
+        (*desc2).len = size_of::<u8>() as u32;
+        (*desc2).flags = VRING_DESC_F_WRITE;
+        (*desc2).next = 0;
+    }
+
+    /* Put the first descriptor of the descriptor chain in the avail ring */
+    unsafe {
+        let avail_idx = (*disk.avail).idx as usize;
+        (*disk.avail).ring[avail_idx % QSIZE] = idxs[0] as u16;
+        (*disk.avail).idx += 1;
+    }
+
+    // Notify queue 0 for the request
+    DEV.write(VIRTIO_MMIO_QUEUE_NOTIFY, 0);
+
+    loop {}
+
+    todo!();
+}
+
+fn test() {
+    let buf: [u8; 512] = [0; 512];
+
+    /* Enable interrupt temporarily for testing purpose. The
+     * actually point we'll enable this is the start of scheduler. */
+    cpu::intr_on();
+
+    disk_rw(&buf, 512, 0, true);
+
+    cpu::intr_off();
 }

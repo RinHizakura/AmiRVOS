@@ -115,3 +115,9 @@ pub(self) const VIRTIO_RING_F_INDIRECT_DESC: u32 = 1 << 28;
  * - The Host publishes the avail index for which it expects a kick
  * at the end of the used ring. Guest should ignore the used->flags field. */
 pub(self) const VIRTIO_RING_F_EVENT_IDX: u32 = 1 << 29;
+
+pub(self) const VIRTIO_BLK_T_IN: u32 = 0;
+pub(self) const VIRTIO_BLK_T_OUT: u32 = 1;
+
+pub(self) const VRING_DESC_F_NEXT: u16 = 1;
+pub(self) const VRING_DESC_F_WRITE: u16 = 2;

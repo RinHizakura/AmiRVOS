@@ -58,9 +58,6 @@ pub extern "C" fn kmain() -> ! {
     virtio::blk::init();
     sched::init();
 
-    /* Enable the interrupt for timer */
-    cpu::timer_on();
-
     /* Start the timer tick, the scheduler will then start on
      * accordingly */
     clint::set_next_tick();

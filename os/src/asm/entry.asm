@@ -40,8 +40,7 @@ _start:
 2:
     # (1 << 11): the privilege level will be set to 1(supervisor mode) after mret
     # (1 << 7): the machine mode interrupt-enable bit will be 1 after mret
-    # (1 << 5): the supervisor mode interrupt-enable bit will be 1 after mret
-    li      t0, (1 << 11) | (1 << 7) | (1 << 5)
+    li      t0, (1 << 11) | (1 << 7)
     csrw    mstatus, t0
 
     # M-mode and S-mode software interrupt, timer interrupt, and external
