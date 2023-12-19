@@ -78,6 +78,8 @@ struct Disk {
     free_desc: [bool; QSIZE],
     // It marks whether a req entry is free to be used
     free_req: [bool; QSIZE],
+
+    used_idx: u16,
 }
 /* FIXME: Get avoid to unsafe if possible */
 unsafe impl Sync for Disk {}
@@ -93,6 +95,8 @@ impl Disk {
             req: [VirtioBlkReq::default(); QSIZE],
             free_desc: [true; QSIZE],
             free_req: [true; QSIZE],
+
+            used_idx: 0,
         }
     }
 
@@ -280,9 +284,7 @@ pub fn init() {
 }
 
 pub fn disk_rw(buf: &[u8], buf_size: usize, offset: usize, is_write: bool) {
-    /* Hold the disk lock in full function scope. It is
-     * not expect to fail acquiring the lock now */
-    let mut disk = DISK.try_lock().expect("DISK try_lock()");
+    let mut disk = DISK.acquire();
 
     let sector = offset / SECTOR_SIZE;
     let req_idx = disk.alloc_req().expect("alloc_req()");
@@ -337,9 +339,42 @@ pub fn disk_rw(buf: &[u8], buf_size: usize, offset: usize, is_write: bool) {
     // Notify queue 0 for the request
     DEV.write(VIRTIO_MMIO_QUEUE_NOTIFY, 0);
 
+    /* FIXME: Release the disk lock and blocking wait for virtio-blk
+     * to finish. The lock should be required by virtio::blk::irq_handler()
+     * a few times later.
+     *
+     * Note that this implementation will cause deadlock if other task
+     * also want to make request, so we need to improve this in the
+     * future. */
+    DISK.release(disk);
+
     loop {}
 
     todo!();
+}
+
+pub fn irq_handler() {
+    /* A bit mask of events that cause the interrupt is showed in this register:
+     * - bit 0 - the device has used a buffer in at least one of the active virtual queues
+     * - bit 1 - the configuration of the device has changed */
+    let status = DEV.read(VIRTIO_MMIO_INTERRUPT_STATUS);
+    /* Ack the interrupt with value in InterruptStatus to notify the device
+     * that events causing the interrupt have been handled */
+    DEV.write(VIRTIO_MMIO_INTERRUPT_ACK, status & 0x3);
+
+    let mut disk = DISK.lock();
+
+    while disk.used_idx != unsafe { (*disk.used).idx } {
+        unsafe {
+            println!("idx {}", (*disk.used).idx);
+        }
+
+        disk.used_idx += 1;
+    }
+
+    println!("handler");
+
+    todo!()
 }
 
 fn test() {

@@ -4,7 +4,6 @@ use crate::sched::context::TaskContext;
 use crate::sched::scheduler::Scheduler;
 use crate::sched::task::Task;
 use lazy_static::lazy_static;
-use riscv::register::satp;
 
 use self::context::TrapFrame;
 

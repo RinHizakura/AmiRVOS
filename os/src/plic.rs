@@ -2,6 +2,7 @@
  * [PLIC memory map of Qemu on xv6-riscv](https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/memlayout.h)
  */
 use crate::uart;
+use crate::virtio::blk;
 
 const VIRTIO0_IRQ: u32 = 1;
 const UART0_IRQ: u32 = 10;
@@ -36,6 +37,7 @@ pub fn irq_handler() {
     assert_ne!(irq, 0);
 
     match irq {
+        VIRTIO0_IRQ => blk::irq_handler(),
         UART0_IRQ => uart::irq_handler(),
         _ => panic!("Unknown external interrupt: {}", irq),
     }
