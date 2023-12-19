@@ -5,6 +5,15 @@ pub struct Locked<A> {
     inner: spin::Mutex<A>,
 }
 
+/* FIXME: Please note that if what you are looking for is the correctness of
+ * synchronization, you should always use acquire() and release() pairs
+ * to meet the purpose, which will better consider the deadlock issue.
+ * You will only use lock() or try_lock() explicitly when knowing the fact
+ * that there's no race in the using context. For example, some strutures are
+ * wrapped with lock just because they are static mutable data. Even though
+ * we don't really access them on different thread, we still need to apply
+ * synchronization mechanism on them for Rust's safety check. This design may
+ * be confusing, and we should consider to improve it in the future. */
 impl<A> Locked<A> {
     pub const fn new(inner: A) -> Self {
         Locked {
