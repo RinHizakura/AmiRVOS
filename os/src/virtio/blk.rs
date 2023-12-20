@@ -71,13 +71,15 @@ struct Disk {
     avail: *mut VirtqAvail,
     used: *mut VirtqUsed,
 
-    // The buffer for virtio-blk request header
+    // The buffer for virtio-blk request entries
     req: [VirtioBlkReq; QSIZE],
+    /* FIXME: The raw pointer of waiting state to synchronize between normal
+     * routine and interrupt handler. Check whether we have better approach to
+     * avoid raw pointer which is unsafe. */
+    wait: [*mut bool; QSIZE],
 
     // It marks whether a descriptor entry is free to be used
     free_desc: [bool; QSIZE],
-    // It marks whether a req entry is free to be used
-    free_req: [bool; QSIZE],
 
     used_idx: u16,
 }
@@ -93,8 +95,8 @@ impl Disk {
             used: null_mut(),
 
             req: [VirtioBlkReq::default(); QSIZE],
+            wait: [null_mut(); QSIZE],
             free_desc: [true; QSIZE],
-            free_req: [true; QSIZE],
 
             used_idx: 0,
         }
@@ -114,29 +116,6 @@ impl Disk {
         self.desc = zalloc(0) as *mut VirtqDesc;
         self.avail = zalloc(0) as *mut VirtqAvail;
         self.used = zalloc(0) as *mut VirtqUsed;
-    }
-
-    fn alloc_req(&mut self) -> Option<usize> {
-        for idx in 0..QSIZE {
-            if self.free_req[idx] == true {
-                self.free_req[idx] = false;
-                return Some(idx);
-            }
-        }
-
-        None
-    }
-
-    fn free_req(&mut self, idx: usize) {
-        if idx >= QSIZE {
-            panic!("Invalid req index to free");
-        }
-
-        if self.free_desc[idx] {
-            panic!("Non allocated req to free");
-        }
-
-        self.free_req[idx] = true;
     }
 
     fn alloc_desc(&mut self) -> Option<usize> {
@@ -177,6 +156,21 @@ impl Disk {
         }
 
         Some(descs)
+    }
+
+    fn free_desc_chain(&mut self, n: usize) {
+        let mut idx = n;
+        loop {
+            let desc = self.get_desc(idx);
+            let flag = unsafe { (*desc).flags };
+            let next = unsafe { (*desc).next };
+            self.free_desc(idx);
+            if flag & VRING_DESC_F_NEXT != 0 {
+                idx = next as usize;
+            } else {
+                break;
+            }
+        }
     }
 
     fn get_desc(&self, idx: usize) -> *mut VirtqDesc {
@@ -287,7 +281,12 @@ pub fn disk_rw(buf: &[u8], buf_size: usize, offset: usize, is_write: bool) {
     let mut disk = DISK.acquire();
 
     let sector = offset / SECTOR_SIZE;
-    let req_idx = disk.alloc_req().expect("alloc_req()");
+    // Allocate 3 descriptors for this command
+    let idxs = disk.alloc_n_desc(3).expect("alloc_n_desc(3)");
+    /* Use the first index of the descriptor chain to pick a request entry.
+     * This can help us to simply find the corresponding request when getting
+     * response from device. */
+    let req_idx = idxs[0];
 
     if is_write {
         disk.req[req_idx].typ = VIRTIO_BLK_T_OUT;
@@ -295,9 +294,6 @@ pub fn disk_rw(buf: &[u8], buf_size: usize, offset: usize, is_write: bool) {
         disk.req[req_idx].typ = VIRTIO_BLK_T_IN;
     }
     disk.req[req_idx].sector = sector as u64;
-
-    // Allocate 3 descriptors for this command
-    let idxs = disk.alloc_n_desc(3).expect("alloc_n_desc(3)");
 
     let req_ptr = &disk.req[req_idx] as *const VirtioBlkReq;
     unsafe {
@@ -336,6 +332,11 @@ pub fn disk_rw(buf: &[u8], buf_size: usize, offset: usize, is_write: bool) {
         (*disk.avail).idx += 1;
     }
 
+    /* Set the flag and wait for the interrupt handler to reset, which
+     * means the request is completed */
+    let mut wait = true;
+    disk.wait[req_idx] = &mut wait as *mut bool;
+
     // Notify queue 0 for the request
     DEV.write(VIRTIO_MMIO_QUEUE_NOTIFY, 0);
 
@@ -348,9 +349,12 @@ pub fn disk_rw(buf: &[u8], buf_size: usize, offset: usize, is_write: bool) {
      * future. */
     DISK.release(disk);
 
-    loop {}
+    while wait {}
 
-    todo!();
+    // Get the lock again and release allocated descriptors
+    let mut disk = DISK.acquire();
+    disk.free_desc_chain(idxs[0]);
+    DISK.release(disk);
 }
 
 pub fn irq_handler() {
@@ -362,19 +366,24 @@ pub fn irq_handler() {
      * that events causing the interrupt have been handled */
     DEV.write(VIRTIO_MMIO_INTERRUPT_ACK, status & 0x3);
 
-    let mut disk = DISK.lock();
+    let mut disk = DISK.acquire();
 
+    /* The used ring is used to receive the response. */
     while disk.used_idx != unsafe { (*disk.used).idx } {
-        unsafe {
-            println!("idx {}", (*disk.used).idx);
-        }
+        /* Note that the device don't have to handle the request in order,
+         * so we use the id of element */
+        let id = unsafe { (*disk.used).ring[disk.used_idx as usize % QSIZE].id as usize };
+        /* TODO: The status is expected to be VIRTIO_BLK_S_OK for success
+         * request. Maybe we can consider to do error handling here */
+        assert!(disk.req[id].status == VIRTIO_BLK_S_OK);
+
+        // Notify the request is completed
+        unsafe { *disk.wait[id] = false };
 
         disk.used_idx += 1;
     }
 
-    println!("handler");
-
-    todo!()
+    DISK.release(disk);
 }
 
 fn test() {
@@ -384,7 +393,8 @@ fn test() {
      * actually point we'll enable this is the start of scheduler. */
     cpu::intr_on();
 
-    disk_rw(&buf, 512, 0, true);
+    disk_rw(&buf, 512, 0, false);
+    print!("Buffer = {:?}", buf);
 
     cpu::intr_off();
 }

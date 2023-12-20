@@ -96,6 +96,8 @@ pub(self) const VIRTIO_BLK_F_SECURE_ERASE: u32 = 1 << 16;
 #[allow(dead_code)]
 pub(self) const VIRTIO_BLK_F_ZONED: u32 = 1 << 17;
 
+pub(self) const VIRTIO_BLK_S_OK: u8 = 0;
+
 /* If this feature has been negotiated by driver, the device MUST issue a used
  * buffer notification if the device runs out of available descriptors on a virtqueue,
  * even though notifications are suppressed using the VIRTQ_AVAIL_F_NO_INTERRUPT flag
