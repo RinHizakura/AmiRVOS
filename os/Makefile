@@ -41,6 +41,6 @@ qemu: build
 
 GDBSTUB_COMM := 127.0.0.1:1234
 debug:
-	riscv64-unknown-linux-gnu-gdb                 \
-		-ex "file $(KERNEL_FILE)"             \
-		-ex "target remote $(GDBSTUB_COMM)"   \
+	RUST_GDB=riscv64-unknown-linux-gnu-gdb rust-gdb \
+		-ex "file $(KERNEL_FILE)"               \
+		-ex "target remote $(GDBSTUB_COMM)"     \
