@@ -46,8 +46,6 @@ struct VirtioBlkReq {
     typ: u32,
     reserved: u32,
     sector: u64,
-    data: *mut u8,
-    status: u8,
 }
 
 impl Default for VirtioBlkReq {
@@ -56,8 +54,6 @@ impl Default for VirtioBlkReq {
             typ: 0,
             reserved: 0,
             sector: 0,
-            data: null_mut(),
-            status: 0,
         }
     }
 }
@@ -73,6 +69,13 @@ struct Disk {
 
     // The buffer for virtio-blk request entries
     req: [VirtioBlkReq; QSIZE],
+    /* The status field for virtio-blk request's result is seperated from
+     * the VirtioBlkReq intensionally, because descriptors seem must be either
+     * read-only or write-only for the device.
+     *
+     * See https://brennan.io/2020/03/22/sos-block-device/ for more information */
+    status: [u8; QSIZE],
+
     /* FIXME: The raw pointer of waiting state to synchronize between normal
      * routine and interrupt handler. Check whether we have better approach to
      * avoid raw pointer which is unsafe. */
@@ -95,6 +98,7 @@ impl Disk {
             used: null_mut(),
 
             req: [VirtioBlkReq::default(); QSIZE],
+            status: [0; QSIZE],
             wait: [null_mut(); QSIZE],
             free_desc: [true; QSIZE],
 
@@ -315,9 +319,9 @@ pub fn disk_rw(buf: &[u8], buf_size: usize, offset: usize, is_write: bool) {
 
     /* Set the status field to a invalid value, so we can
      * observe the change if the device modifies it. */
-    disk.req[req_idx].status = 0xff;
+    disk.status[req_idx] = 0xff;
     unsafe {
-        let status_ptr = &disk.req[req_idx].status as *const u8;
+        let status_ptr = &disk.status[req_idx] as *const u8;
         let desc2 = disk.get_desc(idxs[2]);
         (*desc2).addr = status_ptr as u64;
         (*desc2).len = size_of::<u8>() as u32;
@@ -375,7 +379,7 @@ pub fn irq_handler() {
         let id = unsafe { (*disk.used).ring[disk.used_idx as usize % QSIZE].id as usize };
         /* TODO: The status is expected to be VIRTIO_BLK_S_OK for success
          * request. Maybe we can consider to do error handling here */
-        assert!(disk.req[id].status == VIRTIO_BLK_S_OK);
+        assert!(disk.status[id] == VIRTIO_BLK_S_OK);
 
         // Notify the request is completed
         unsafe { *disk.wait[id] = false };
@@ -395,6 +399,7 @@ fn test() {
 
     disk_rw(&buf, 512, 0, false);
     print!("Buffer = {:?}", buf);
+    disk_rw(&buf, 512, 0, true);
 
     cpu::intr_off();
 }
