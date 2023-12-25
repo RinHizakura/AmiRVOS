@@ -73,7 +73,10 @@ struct Disk {
      * the VirtioBlkReq intensionally, because descriptors seem must be either
      * read-only or write-only for the device.
      *
-     * See https://brennan.io/2020/03/22/sos-block-device/ for more information */
+     * See:
+     *  - https://brennan.io/2020/03/22/sos-block-device/
+     *  - https://wiki.osdev.org/Virtio#Block%20Device%20Packets
+     *  for more information */
     status: [u8; QSIZE],
 
     /* FIXME: The raw pointer of waiting state to synchronize between normal
