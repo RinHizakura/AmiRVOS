@@ -1,2 +1,3 @@
 os/target/
-root.img
+mkfs/target/
+mkfs/fs.img

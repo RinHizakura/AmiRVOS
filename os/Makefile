@@ -9,7 +9,7 @@ endif
 CURDIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 TARGET      := riscv64gc-unknown-none-elf
 KERNEL_FILE := target/$(TARGET)/$(MODE)/os
-RFS_FILE    := root.img
+RFS_FILE    := ../mkfs/fs.img
 GIT_HOOKS   := $(CURDIR)/../.git/hooks/applied
 
 .PHONY: build asm clean qemu
