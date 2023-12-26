@@ -3,13 +3,17 @@
 RETURN=0
 
 # 1. Check the format of Rust file
-cd os;cargo fmt --all -- --check
-r=$?
-if [ $r != 0 ] ; then
-   echo "[!] Rust file does not follow the consistent coding style." >&2
-   echo "Make sure you indent as the following:" >&2
-   echo "    cargo fmt" >&2
-   RETURN=1
-fi
+dir=('os' 'fs' 'mkfs')
 
+for d in ${dir[*]}
+do
+    cargo -Z unstable-options -C $d fmt --all -- --check
+    r=$?
+    if [ $r != 0 ] ; then
+       echo "[!] Rust file does not follow the consistent coding style." >&2
+       echo "Make sure you indent as the following:" >&2
+       echo "    cargo fmt" >&2
+       RETURN=1
+    fi
+done
 exit $RETURN

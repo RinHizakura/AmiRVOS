@@ -11,6 +11,8 @@ bitflags = "2.4.0"
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 spin = "0.9.8"
 riscv = {version = "0.10.1"}
+plain = "0.2.3"
+fs = { path = "../fs" }
 
 [profile.dev]
 panic = "abort"

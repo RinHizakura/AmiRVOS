@@ -1,3 +1,4 @@
 os/target/
 mkfs/target/
+fs/target/
 mkfs/fs.img

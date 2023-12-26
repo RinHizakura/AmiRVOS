@@ -3,6 +3,7 @@ use super::*;
 use crate::cpu;
 use crate::lock::Locked;
 use crate::mm::page::zalloc;
+use crate::utils::cast::to_struct;
 
 use core::mem::size_of;
 use core::ptr::null_mut;
@@ -284,7 +285,8 @@ pub fn init() {
     test();
 }
 
-pub fn disk_rw(buf: &[u8], buf_size: usize, offset: usize, is_write: bool) {
+pub fn disk_rw(buf: &[u8], offset: usize, is_write: bool) {
+    let buf_size = buf.len();
     let mut disk = DISK.acquire();
 
     let sector = offset / SECTOR_SIZE;
@@ -393,6 +395,7 @@ pub fn irq_handler() {
     DISK.release(disk);
 }
 
+use fs::SuperBlock;
 fn test() {
     let buf: [u8; 512] = [0; 512];
 
@@ -400,9 +403,10 @@ fn test() {
      * actually point we'll enable this is the start of scheduler. */
     cpu::intr_on();
 
-    disk_rw(&buf, 512, 0, false);
-    print!("Buffer = {:?}", buf);
-    disk_rw(&buf, 512, 0, true);
+    disk_rw(&buf, 1024, false);
+    let sb = to_struct::<SuperBlock>(&buf);
+    println!("SB = {:x}", sb.nblocks);
+    disk_rw(&buf, 0, true);
 
     cpu::intr_off();
 }
