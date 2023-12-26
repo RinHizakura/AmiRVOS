@@ -6,24 +6,31 @@ else
 	OPT  :=
 endif
 
+KERNEL        := os
+MKFS          := mkfs
+RFS_FILE_NAME := fs.img
+
 CURDIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 TARGET      := riscv64gc-unknown-none-elf
-KERNEL_FILE := target/$(TARGET)/$(MODE)/os
-RFS_FILE    := ../mkfs/fs.img
-GIT_HOOKS   := $(CURDIR)/../.git/hooks/applied
+KERNEL_FILE := $(KERNEL)/target/$(TARGET)/$(MODE)/os
+RFS_FILE    := $(MKFS)/$(RFS_FILE_NAME)
+GIT_HOOKS   := $(CURDIR)/.git/hooks/applied
 
 .PHONY: build asm clean qemu
 
 all: build $(GIT_HOOKS)
 
 $(GIT_HOOKS):
-	@cd $(CURDIR)/..; scripts/install-git-hooks
+	scripts/install-git-hooks
 
 build:
-	cargo build $(OPT)
+	cargo -Z unstable-options -C $(KERNEL) build $(OPT)
+	cargo -Z unstable-options -C $(MKFS) run $(OPT) $(RFS_FILE_NAME)
 
 clean:
-	@cargo clean
+	@cargo -Z unstable-options -C $(KERNEL) clean
+	@cargo -Z unstable-options -C $(MKFS) clean
+	$(RM) $(RFS_FILE)
 
 qemu: build
 	@qemu-system-riscv64          \
