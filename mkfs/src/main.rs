@@ -1,23 +1,85 @@
+#![feature(const_maybe_uninit_zeroed)]
+
+use std::cell::{Cell, RefCell};
 use std::env;
-use std::fs::File;
-use std::io::{Seek, SeekFrom, Write};
-use std::mem::size_of;
+use std::fs::{File, OpenOptions};
+use std::io::{Read, Seek, SeekFrom, Write};
+use std::mem::{size_of, MaybeUninit};
 use std::slice;
 
 use fs::*;
+
+thread_local! {
+    static FSFILE: RefCell<File> =
+                    RefCell::new(unsafe { MaybeUninit::zeroed().assume_init() });
+    static NEXT_INUM: Cell<u32> = Cell::new(1);
+}
+
+pub fn to_struct<T: plain::Plain>(args: &mut [u8]) -> &mut T {
+    let size = size_of::<T>();
+    let slice = &mut args[0..size];
+    return plain::from_mut_bytes::<T>(slice).expect("Fail to cast bytes to Args");
+}
 
 fn as_slice<T: Sized>(p: &T) -> &[u8] {
     unsafe { slice::from_raw_parts((p as *const T) as *const u8, size_of::<T>()) }
 }
 
-fn wsect(f: &mut File, sec: u64, buf: &[u8]) {
-    let off = f
-        .seek(SeekFrom::Start(sec * BLKSZ as u64))
-        .expect("seek for wsect fail");
+fn wsect(sec: u64, buf: &[u8]) {
+    let off = FSFILE.with(|f| {
+        f.borrow_mut()
+            .seek(SeekFrom::Start(sec * BLKSZ as u64))
+            .expect("seek for wsect fail")
+    });
     assert!(off as u64 == sec * BLKSZ as u64);
 
-    let size = f.write(buf).expect("write for wsect fail");
+    let size = FSFILE.with(|f| f.borrow_mut().write(buf).expect("write for wsect fail"));
     assert!(size == BLKSZ);
+}
+
+fn rsect(sec: u64, buf: &mut [u8]) {
+    let off = FSFILE.with(|f| {
+        f.borrow_mut()
+            .seek(SeekFrom::Start(sec * BLKSZ as u64))
+            .expect("seek for rsect fail")
+    });
+    assert!(off as u64 == sec * BLKSZ as u64);
+
+    let size = FSFILE.with(|f| f.borrow_mut().read(buf).expect("read for rsect fail"));
+    assert!(size == BLKSZ);
+}
+
+fn winode(sb: &SuperBlock, inum: u32, inode: Inode) {
+    let mut buf = [0; BLKSZ];
+
+    // Read, write, and modify
+    let block = iblock(sb, inum);
+    rsect(block as u64, &mut buf);
+
+    assert!(inum > 0);
+    let start = ((inum - 1) as usize % INODES_PER_BLK) * size_of::<Inode>();
+    let end = start + size_of::<Inode>();
+    let inode_ptr = to_struct::<Inode>(&mut buf[start..end]);
+
+    *inode_ptr = inode;
+    wsect(block as u64, &buf);
+}
+
+fn alloc_inode(sb: &SuperBlock, typ: u16) -> u32 {
+    let inum = NEXT_INUM.get();
+    NEXT_INUM.set(inum + 1);
+
+    let inode = Inode {
+        typ: typ,
+        major: 0,
+        minor: 0,
+        nlink: 1,
+        size: 0,
+        addrs: [0; NDIRECT + 1],
+    };
+
+    winode(sb, inum, inode);
+    inum
 }
 
 fn main() {
@@ -26,10 +88,18 @@ fn main() {
     let img_name = &args[1];
 
     let mut buf = [0; BLKSZ];
-    let mut f = File::create(img_name).expect("create()");
+    FSFILE.set(
+        OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(img_name)
+            .expect("create()"),
+    );
 
     for i in 0..FS_BLKSZ {
-        wsect(&mut f, i as u64, &[0; BLKSZ]);
+        wsect(i as u64, &[0; BLKSZ]);
     }
 
     /* In this design, we have the following metadata. Sequentially from
@@ -61,5 +131,9 @@ fn main() {
     };
 
     buf[0..size_of::<SuperBlock>()].copy_from_slice(as_slice(&sb));
-    wsect(&mut f, 1, &mut buf);
+    wsect(1, &mut buf);
+
+    /* Create inode for the root directory */
+    let rootino = alloc_inode(&sb, T_DIR);
+    assert!(rootino == ROOTINO);
 }

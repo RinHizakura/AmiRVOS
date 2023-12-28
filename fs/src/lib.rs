@@ -21,6 +21,9 @@ pub const INODE_BLKSZ: u32 = NINODES.div_ceil(INODES_PER_BLK as u32);
 // size of bitmap in blocks
 pub const BITMAP_BLKSZ: u32 = FS_BLKSZ.div_ceil(BLKSZ as u32 * 8);
 
+// Inode number for root
+pub const ROOTINO: u32 = 1;
+//
 pub const MAGIC: u32 = 0x52696B6F;
 
 #[repr(C)]
@@ -43,7 +46,15 @@ pub struct SuperBlock {
 }
 unsafe impl plain::Plain for SuperBlock {}
 
+// Directory type file
+pub const T_DIR: u16 = 1;
+// Normal File
+pub const T_FILE: u16 = 2;
+// Device type file
+pub const T_DEVICE: u16 = 3;
+
 pub const NDIRECT: usize = 12;
+
 #[repr(C)]
 pub struct Inode {
     // File type
@@ -60,3 +71,9 @@ pub struct Inode {
     pub addrs: [u32; NDIRECT + 1],
 }
 unsafe impl plain::Plain for Inode {}
+
+// Block containing inode i
+pub fn iblock(sb: &SuperBlock, inum: u32) -> u32 {
+    // According to the inode number, evaluate the block to place it
+    inum / INODES_PER_BLK as u32 + sb.inodestart
+}
