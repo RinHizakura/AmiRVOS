@@ -395,7 +395,7 @@ pub fn irq_handler() {
     DISK.release(disk);
 }
 
-use fs::SuperBlock;
+use fs::{Inode, SuperBlock, BLKSZ};
 fn test() {
     let buf: [u8; 512] = [0; 512];
 
@@ -405,8 +405,11 @@ fn test() {
 
     disk_rw(&buf, 1024, false);
     let sb = to_struct::<SuperBlock>(&buf);
-    println!("SB = {:x}", sb.nblocks);
-    disk_rw(&buf, 0, true);
+    println!("SB nblocks = {:x}", sb.nblocks);
+
+    disk_rw(&buf, sb.inodestart as usize * BLKSZ, false);
+    let root = to_struct::<Inode>(&buf);
+    println!("Inode directs[0] = {:x}", root.directs[0]);
 
     cpu::intr_off();
 }

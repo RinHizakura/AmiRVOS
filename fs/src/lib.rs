@@ -53,9 +53,16 @@ pub const T_FILE: u16 = 2;
 // Device type file
 pub const T_DEVICE: u16 = 3;
 
+// NDIRECT blocks in a file are described with direct link
 pub const NDIRECT: usize = 12;
+/* NINDIRECT blocks in a file are described with indirect link. At
+ * most one block is choosed to store the link */
+pub const NINDIRECT: usize = BLKSZ / size_of::<u32>();
+/* A file's total blocks is not expected to go over the total availible links */
+pub const FILE_MAX_LINK: usize = NDIRECT + NINDIRECT;
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct Inode {
     // File type
     pub typ: u16,
@@ -67,10 +74,19 @@ pub struct Inode {
     pub nlink: u16,
     // Size of file (bytes)
     pub size: u32,
-    // Data block addresses
-    pub addrs: [u32; NDIRECT + 1],
+    // Data block addresses for direct access
+    pub directs: [u32; NDIRECT],
+    // Data block addresses for indirect access
+    pub indirect: u32,
 }
 unsafe impl plain::Plain for Inode {}
+
+pub const DIRSIZ: usize = 14;
+#[repr(C)]
+pub struct Dirent {
+    pub inum: u16,
+    pub name: [u8; DIRSIZ],
+}
 
 // Block containing inode i
 pub fn iblock(sb: &SuperBlock, inum: u32) -> u32 {

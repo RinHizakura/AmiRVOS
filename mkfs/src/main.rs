@@ -12,6 +12,9 @@ use fs::*;
 thread_local! {
     static FSFILE: RefCell<File> =
                     RefCell::new(unsafe { MaybeUninit::zeroed().assume_init() });
+    static ALLOC_BLOCK: Cell<u64> =
+                    Cell::new(unsafe { MaybeUninit::zeroed().assume_init() });
+    // NOTE: This is a 1-based value
     static NEXT_INUM: Cell<u32> = Cell::new(1);
 }
 
@@ -49,6 +52,20 @@ fn rsect(sec: u64, buf: &mut [u8]) {
     assert!(size == BLKSZ);
 }
 
+fn rinode(sb: &SuperBlock, inum: u32) -> Inode {
+    let mut buf = [0; BLKSZ];
+
+    let block = iblock(sb, inum);
+    rsect(block as u64, &mut buf);
+
+    assert!(inum > 0);
+    let start = ((inum - 1) as usize % INODES_PER_BLK) * size_of::<Inode>();
+    let end = start + size_of::<Inode>();
+    let inode_ptr = to_struct::<Inode>(&mut buf[start..end]);
+
+    *inode_ptr
+}
+
 fn winode(sb: &SuperBlock, inum: u32, inode: Inode) {
     let mut buf = [0; BLKSZ];
 
@@ -75,11 +92,50 @@ fn alloc_inode(sb: &SuperBlock, typ: u16) -> u32 {
         minor: 0,
         nlink: 1,
         size: 0,
-        addrs: [0; NDIRECT + 1],
+        directs: [0; NDIRECT],
+        indirect: 0,
     };
 
     winode(sb, inum, inode);
     inum
+}
+
+fn iappend(sb: &SuperBlock, inum: u32, data: &[u8]) {
+    /* Append new contents to the file described by this inode */
+    let mut buf = [0; BLKSZ];
+    let len = data.len();
+    let mut inode = rinode(sb, inum);
+
+    /* The new data will append from the end of file */
+    let end = inode.size as usize;
+    let mut off = 0;
+
+    while off < len {
+        let nlink = (end + off) / BLKSZ;
+        assert!(nlink < FILE_MAX_LINK);
+
+        let block_num;
+        if nlink < NDIRECT {
+            /* The first NDIRECT links are directly linked */
+            block_num = ALLOC_BLOCK.get();
+            inode.directs[nlink] = block_num as u32;
+            ALLOC_BLOCK.set(block_num + 1);
+        } else {
+            // TODO: Support larger file size which requires indirect linking
+            todo!();
+        }
+
+        let n = len.min((nlink + 1) * BLKSZ - (end + off));
+        rsect(block_num, &mut buf);
+        let buf_start = (end + off) - nlink * BLKSZ;
+        buf[buf_start..buf_start + n].copy_from_slice(&data[off..off + n]);
+        wsect(block_num, &buf);
+
+        off += n;
+    }
+
+    inode.size += len as u32;
+    winode(sb, inum, inode);
 }
 
 fn main() {
@@ -114,6 +170,9 @@ fn main() {
     // The remaining blocks are used for data block
     let nblocks = FS_BLKSZ - nmeta;
 
+    // There are nmeta blocks allocated currently
+    ALLOC_BLOCK.set(nmeta as u64);
+
     println!(
         "Total {} = 1 boot + 1 superblock + {} log + {} inode + {} bitmap + {} data",
         FS_BLKSZ, LOG_BLKSZ, INODE_BLKSZ, BITMAP_BLKSZ, nblocks
@@ -129,11 +188,23 @@ fn main() {
         inodestart: 2 + LOG_BLKSZ,
         bmapstart: 2 + LOG_BLKSZ + INODE_BLKSZ,
     };
-
     buf[0..size_of::<SuperBlock>()].copy_from_slice(as_slice(&sb));
     wsect(1, &mut buf);
 
     /* Create inode for the root directory */
     let rootino = alloc_inode(&sb, T_DIR);
     assert!(rootino == ROOTINO);
+
+    /* Create root directory that the root inode refers to */
+    let mut name_buf: [u8; DIRSIZ] = [0; DIRSIZ];
+    let s = ".";
+    let slen = s.len();
+    // At least the last '\0' should be retained
+    assert!(slen < DIRSIZ - 1);
+    name_buf[0..slen].copy_from_slice(s.as_bytes());
+    let dirent = Dirent {
+        inum: rootino as u16,
+        name: name_buf,
+    };
+    iappend(&sb, rootino, as_slice(&dirent));
 }
