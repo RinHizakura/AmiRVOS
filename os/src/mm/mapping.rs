@@ -192,6 +192,10 @@ impl Mapping {
         let offset = vaddr & ((1 << offset_length) - 1);
         return Some(next_entry.page_num() << 12 + offset as u64);
     }
+
+    pub fn copy_from_user(&self, addr: usize, buf: &mut [u8]) {
+        todo!("copy_from_user()")
+    }
 }
 
 impl Drop for Mapping {

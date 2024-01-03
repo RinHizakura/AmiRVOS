@@ -3,6 +3,7 @@ use crate::lock::Locked;
 use crate::sched::context::TaskContext;
 use crate::sched::scheduler::Scheduler;
 use crate::sched::task::Task;
+use crate::sched::user::userinit;
 use lazy_static::lazy_static;
 
 use self::context::TrapFrame;
@@ -10,6 +11,7 @@ use self::context::TrapFrame;
 mod context;
 mod scheduler;
 mod task;
+mod user;
 
 extern "C" {
     fn switch_to(prev: *mut TaskContext, cur: *mut TaskContext);
@@ -43,25 +45,10 @@ pub extern "C" fn exit() {
     loop {}
 }
 
-/* TODO: This should be implement elsewhere and put on disk
- * image. Now we just embed it in kernel image for simply
- * testing. */
-#[link_section = ".text.user.main"]
-pub extern "C" fn user() {
-    extern "C" {
-        fn write();
-    }
-    loop {
-        unsafe {
-            //write();
-        }
-    }
-}
-
 pub fn init() {
     SCHEDULER.lock().kspawn(initd);
     SCHEDULER.lock().kspawn(exit);
-    SCHEDULER.lock().uspawn(user);
+    SCHEDULER.lock().uspawn(userinit);
 }
 
 pub fn current() -> *mut Task {
@@ -72,10 +59,7 @@ pub fn current() -> *mut Task {
 
 pub fn current_frame() -> *mut TrapFrame {
     let cur = current();
-    let frame;
-    unsafe {
-        frame = (*cur).frame();
-    }
+    let frame = unsafe { (*cur).frame() };
     assert!(!frame.is_null());
     frame
 }

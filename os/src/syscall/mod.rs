@@ -4,7 +4,10 @@ mod proc;
 
 /* FIXME: Note: These syscall numbers should match syscall.asm.
  * How can we check the consistency automatically? */
-const SYS_WRITE: usize = 0;
+const SYS_OPEN: usize = 0;
+const SYS_CLOSE: usize = 1;
+const SYS_READ: usize = 2;
+const SYS_WRITE: usize = 3;
 
 pub fn syscall_handler() {
     let frame = sched::current_frame();
@@ -14,8 +17,9 @@ pub fn syscall_handler() {
     warning!("SYSCALL {}", syscall_num);
 
     let result = match syscall_num {
+        SYS_OPEN => proc::sys_open(),
         SYS_WRITE => proc::sys_write(),
-        _ => panic!(),
+        _ => panic!("Unknown syscall {}", syscall_num),
     };
 
     unsafe {

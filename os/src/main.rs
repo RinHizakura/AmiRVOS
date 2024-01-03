@@ -29,6 +29,7 @@ mod macros;
 mod clint;
 mod config;
 mod cpu;
+mod fs;
 mod lock;
 mod mm;
 mod panic;

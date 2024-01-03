@@ -191,6 +191,13 @@ impl Task {
         unsafe { &mut (*self.context).trapframe as *mut TrapFrame }
     }
 
+    pub fn mm<'a>(&'a self) -> &'a Mapping {
+        &self
+            .mm
+            .as_ref()
+            .expect("Unexpected access to memory mapping for kernel task")
+    }
+
     pub fn task_context(&self) -> *mut TaskContext {
         unsafe { &mut (*self.context).task_ctx as *mut TaskContext }
     }
