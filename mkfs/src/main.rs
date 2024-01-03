@@ -138,6 +138,20 @@ fn iappend(sb: &SuperBlock, inum: u32, data: &[u8]) {
     winode(sb, inum, inode);
 }
 
+fn create_dent(sb: &SuperBlock, inum: u32, s: &str) {
+    let mut name_buf: [u8; DIRSIZ] = [0; DIRSIZ];
+    let slen = s.len();
+    // At least the last '\0' should be retained
+    assert!(slen < DIRSIZ - 1);
+
+    name_buf[0..slen].copy_from_slice(s.as_bytes());
+    let dirent = Dirent {
+        inum: inum as u16,
+        name: name_buf,
+    };
+    iappend(&sb, inum, as_slice(&dirent));
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -195,16 +209,22 @@ fn main() {
     let rootino = alloc_inode(&sb, T_DIR);
     assert!(rootino == ROOTINO);
 
-    /* Create root directory that the root inode refers to */
-    let mut name_buf: [u8; DIRSIZ] = [0; DIRSIZ];
-    let s = ".";
-    let slen = s.len();
-    // At least the last '\0' should be retained
-    assert!(slen < DIRSIZ - 1);
-    name_buf[0..slen].copy_from_slice(s.as_bytes());
-    let dirent = Dirent {
-        inum: rootino as u16,
-        name: name_buf,
-    };
-    iappend(&sb, rootino, as_slice(&dirent));
+    /* Create root directory entry that the root inode refers to */
+    create_dent(&sb, rootino, ".");
+
+    /* Create parent directory entry */
+    create_dent(&sb, rootino, "..");
+
+    /* TODO: Append file under root directory(if any) */
+
+    /* Update bitmap for the allocated and unallocated blocks */
+    let total_used = ALLOC_BLOCK.get();
+    let mut buf = [0; BLKSZ];
+    /* We simply assume that the bitmap in the first block is enough for
+     * all the used data. */
+    assert!((total_used as usize) < BLKSZ * 8);
+    for i in 0..total_used {
+        buf[i as usize / 8] |= 1 << (i % 8);
+    }
+    wsect(sb.bmapstart as u64, &buf);
 }
