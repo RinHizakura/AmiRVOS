@@ -1,7 +1,8 @@
 use core::ffi::c_int;
 use core::result;
+use core::str::from_utf8;
 
-use crate::fs::{MAXPATH, O_CREATE};
+use crate::fs::{path_to_inode, MAXPATH, O_CREATE};
 use crate::sched;
 use crate::syscall::syscall_args;
 
@@ -13,8 +14,6 @@ fn fetchstr(addr: usize, buf: &mut [u8]) -> Option<usize> {
     let result = mm.copy_from_user(addr, buf);
     assert!(result);
 
-    println!("{:?}", buf);
-
     buf.iter().position(|&w| w == 0)
 }
 
@@ -24,6 +23,13 @@ pub fn sys_open() -> c_int {
 
     let mut path = [0; MAXPATH];
     let n = fetchstr(path_addr, &mut path);
+
+    if flag & O_CREATE == O_CREATE {
+        todo!("sys_open O_CREATE");
+    } else {
+        let inode = path_to_inode(from_utf8(&path).expect("open path"));
+        todo!("sys_open !O_CREATE");
+    }
 
     todo!("sys_open");
 }

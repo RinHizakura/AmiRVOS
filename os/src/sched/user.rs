@@ -16,7 +16,7 @@ pub extern "C" fn userinit() {
 
     /* FIXME: Intentionally put the c-string on stack for the
      * page table walk can be right */
-    let path = [b'c', b'o', b'n', b's', b'o', b'l', b'e', 0];
+    let path = [b'/', b'c', b'o', b'n', b's', b'o', b'l', b'e', 0];
     unsafe {
         // Open a file for stdin
         if open(path.as_ptr(), O_RDWR) < 0 {
