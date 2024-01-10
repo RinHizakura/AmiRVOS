@@ -1,7 +1,7 @@
 use core::ffi::c_int;
 use core::result;
 
-use crate::fs::MAXPATH;
+use crate::fs::{MAXPATH, O_CREATE};
 use crate::sched;
 use crate::syscall::syscall_args;
 
@@ -18,24 +18,28 @@ fn fetchstr(addr: usize, buf: &mut [u8]) -> Option<usize> {
     buf.iter().position(|&w| w == 0)
 }
 
-pub fn sys_open() -> usize {
+pub fn sys_open() -> c_int {
     let path_addr = syscall_args(0) as usize;
     let flag = syscall_args(1) as c_int;
 
     let mut path = [0; MAXPATH];
     let n = fetchstr(path_addr, &mut path);
 
-    println!("{:?}", n);
-
     todo!("sys_open");
 }
 
-pub fn sys_write() -> usize {
+pub fn sys_write() -> isize {
     let fd = syscall_args(0) as c_int;
     let buf = syscall_args(1);
     let count = syscall_args(2);
 
     // TODO: Support the syscall correctly
+
+    return 0;
+}
+
+pub fn sys_mknod() -> c_int {
+    todo!("mknod()");
 
     return 0;
 }
