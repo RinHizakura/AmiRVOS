@@ -11,9 +11,12 @@ pub extern "C" fn userinit() {
         fn write();
     }
 
+    /* FIXME: Intentionally put the c-string on stack for the
+     * page table walk can be right */
+    let path = [b'c', b'o', b'n', b's', b'o', b'l', b'e', 0];
     unsafe {
         // Open a file for stdin
-        open("console".as_ptr(), O_RDWR);
+        open(path.as_ptr(), O_RDWR);
         loop {}
     }
 }

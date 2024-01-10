@@ -163,7 +163,7 @@ impl Mapping {
         );
     }
 
-    fn walk(&mut self, vaddr: u64) -> Option<u64> {
+    fn walk(&self, vaddr: u64) -> Option<u64> {
         let vaddr = align_down!(vaddr, PAGE_SIZE as u64);
 
         let vpn = [
@@ -173,8 +173,8 @@ impl Mapping {
         ];
 
         let mut new_table;
-        let root_table = &mut self.page_tables[0];
-        let mut next_entry = &mut root_table.entries[vpn[2] as usize];
+        let root_table = &self.page_tables[0];
+        let mut next_entry = &root_table.entries[vpn[2] as usize];
         let mut offset_length = 12 + 2 * 9;
         for i in (0..2).rev() {
             if !next_entry.is_valid() {
@@ -193,8 +193,43 @@ impl Mapping {
         return Some(next_entry.page_num() << 12 + offset as u64);
     }
 
-    pub fn copy_from_user(&self, addr: usize, buf: &mut [u8]) {
-        todo!("copy_from_user()")
+    pub fn copy_from_user(&self, addr: usize, buf: &mut [u8]) -> bool {
+        let len = buf.len();
+        let mut addr = addr;
+        let mut total = 0;
+        let mut success = false;
+
+        while !success && total < len {
+            let va = align_down!(addr, PAGE_SIZE);
+            println!("va {:x}", va);
+            let pa = self.walk(va as u64);
+            // Unable to find the corresponding physical address
+            if pa.is_none() {
+                break;
+            }
+            let pa = pa.unwrap() as usize;
+            println!("va {:x} -> pa {:x}", va, pa);
+            let mut ptr = (pa + (addr - va)) as *const u8;
+            let mut n = (PAGE_SIZE - (addr - va)).min(len - total);
+            while n > 0 {
+                buf[total] = unsafe { *ptr };
+
+                if unsafe { *ptr } == 0 {
+                    success = true;
+                    break;
+                }
+
+                n -= 1;
+                total += 1;
+                unsafe {
+                    ptr = ptr.add(1);
+                }
+            }
+
+            addr = va + PAGE_SIZE;
+        }
+
+        success
     }
 }
 

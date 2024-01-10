@@ -1,4 +1,5 @@
 use core::ffi::c_int;
+use core::result;
 
 use crate::fs::MAXPATH;
 use crate::sched;
@@ -6,13 +7,15 @@ use crate::syscall::syscall_args;
 
 /* The private function is used by syscall handler to access
  * the current process's memory space for nul-terminated string. */
-fn fetchstr(addr: usize, buf: &mut [u8]) -> usize {
+fn fetchstr(addr: usize, buf: &mut [u8]) -> Option<usize> {
     let cur = sched::current();
     let mm = unsafe { (*cur).mm() };
-    mm.copy_from_user(addr, buf);
+    let result = mm.copy_from_user(addr, buf);
+    assert!(result);
 
-    todo!();
-    return 0;
+    println!("{:?}", buf);
+
+    buf.iter().position(|&w| w == 0)
 }
 
 pub fn sys_open() -> usize {
@@ -20,9 +23,11 @@ pub fn sys_open() -> usize {
     let flag = syscall_args(1) as c_int;
 
     let mut path = [0; MAXPATH];
-    fetchstr(path_addr, &mut path);
+    let n = fetchstr(path_addr, &mut path);
 
-    todo!();
+    println!("{:?}", n);
+
+    todo!("sys_open");
 }
 
 pub fn sys_write() -> usize {
