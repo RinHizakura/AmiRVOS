@@ -43,11 +43,11 @@ fn parse_path<'a>(path: &'a str) -> Option<(&'a str, &'a str)> {
 
 // Find the corresponding inode by inode number
 fn find_inode(inum: u32) -> Inode {
-    let buf: [u8; 512] = [0; 512];
+    let buf = bread(iblock(&SB.lock(), ROOTINO));
 
     /* TODO: Optimize by implementing cache for Inode, so we don't need to
      * traverse for the result every time. */
-    todo!("find_inode()");
+    *to_struct::<Inode>(&buf)
 }
 
 // Find the corresponding inode by the path
@@ -57,6 +57,8 @@ pub fn path_to_inode(mut path: &str) -> Inode {
     assert!(path.chars().nth(0) == Some('/'));
 
     let inode = find_inode(ROOTINO);
+
+    println!("inode {}", inode.size);
 
     while let Some((parent, file_path)) = parse_path(path) {
         println!("parent {} file {}", parent, file_path);
