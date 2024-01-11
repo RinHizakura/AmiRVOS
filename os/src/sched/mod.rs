@@ -1,3 +1,5 @@
+use core::mem::MaybeUninit;
+
 use crate::cpu;
 use crate::lock::Locked;
 use crate::sched::context::TaskContext;
@@ -20,7 +22,7 @@ extern "C" {
 
 lazy_static! {
     static ref SCHEDULER: Locked<Scheduler> = Locked::new(Scheduler::new());
-    static ref TASK_CONTEXT: TaskContext = TaskContext::default();
+    static ref TASK_CONTEXT: TaskContext = unsafe { MaybeUninit::zeroed().assume_init() };
 }
 
 fn kernel_task_context() -> *mut TaskContext {

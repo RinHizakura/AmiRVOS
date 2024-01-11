@@ -44,7 +44,6 @@ impl TrapFrame {
 }
 
 #[repr(C)]
-#[derive(Default)]
 pub struct TaskContext {
     pub ra: usize,
     pub sp: usize,
