@@ -20,7 +20,7 @@ extern "C" {
 
 lazy_static! {
     static ref SCHEDULER: Locked<Scheduler> = Locked::new(Scheduler::new());
-    static ref TASK_CONTEXT: TaskContext = TaskContext::new();
+    static ref TASK_CONTEXT: TaskContext = TaskContext::default();
 }
 
 fn kernel_task_context() -> *mut TaskContext {

@@ -44,6 +44,7 @@ impl TrapFrame {
 }
 
 #[repr(C)]
+#[derive(Default)]
 pub struct TaskContext {
     pub ra: usize,
     pub sp: usize,
@@ -60,29 +61,6 @@ pub struct TaskContext {
     pub s9: usize,
     pub s10: usize,
     pub s11: usize,
-}
-
-impl TaskContext {
-    /* This should be only use for lazy_static, and
-     * the initialized value is not that important. */
-    pub fn new() -> TaskContext {
-        TaskContext {
-            ra: 0,
-            sp: 0,
-            s0: 0,
-            s1: 0,
-            s2: 0,
-            s3: 0,
-            s4: 0,
-            s5: 0,
-            s6: 0,
-            s7: 0,
-            s8: 0,
-            s9: 0,
-            s10: 0,
-            s11: 0,
-        }
-    }
 }
 
 #[repr(C)]
