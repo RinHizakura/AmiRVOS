@@ -26,6 +26,7 @@ mod console;
 #[macro_use]
 mod macros;
 
+mod bio;
 mod clint;
 mod config;
 mod cpu;
@@ -57,6 +58,7 @@ pub extern "C" fn kmain() -> ! {
 
     plic::init();
     virtio::blk::init();
+    fs::init();
     sched::init();
 
     /* Start the timer tick, the scheduler will then start on

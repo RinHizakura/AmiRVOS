@@ -281,8 +281,6 @@ pub fn init() {
     /* 8. Set the DRIVER_OK status bit. At this point the device is “live” */
     status |= VIRTIO_CONFIG_S_DRIVER_OK;
     DEV.write(VIRTIO_MMIO_STATUS, status);
-
-    test();
 }
 
 pub fn disk_rw(buf: &[u8], offset: usize, is_write: bool) {
@@ -393,23 +391,4 @@ pub fn irq_handler() {
     }
 
     DISK.release(disk);
-}
-
-use fs::{Inode, SuperBlock, BLKSZ};
-fn test() {
-    let buf: [u8; 512] = [0; 512];
-
-    /* Enable interrupt temporarily for testing purpose. The
-     * actually point we'll enable this is the start of scheduler. */
-    cpu::intr_on();
-
-    disk_rw(&buf, 1024, false);
-    let sb = to_struct::<SuperBlock>(&buf);
-    println!("SB nblocks = {:x}", sb.nblocks);
-
-    disk_rw(&buf, sb.inodestart as usize * BLKSZ, false);
-    let root = to_struct::<Inode>(&buf);
-    println!("Inode directs[0] = {:x}", root.directs[0]);
-
-    cpu::intr_off();
 }

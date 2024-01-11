@@ -27,6 +27,7 @@ pub const ROOTINO: u32 = 1;
 pub const MAGIC: u32 = 0x52696B6F;
 
 #[repr(C)]
+#[derive(Clone, Copy, Default)]
 pub struct SuperBlock {
     pub magic: u32,
     // Size of file system image (blocks)
