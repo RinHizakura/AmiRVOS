@@ -1,6 +1,7 @@
 use core::ffi::c_int;
 use core::mem::{size_of, MaybeUninit};
 use core::ptr;
+use core::str::from_utf8;
 
 use crate::bio::*;
 use crate::lock::Locked;
@@ -144,17 +145,24 @@ fn readi<T>(inode: &Inode, mut off: usize, dst: &mut T) -> bool {
 fn dirlookup(inode: &Inode, name: &str) -> Option<Inode> {
     assert!(inode.typ == T_DIR);
 
-    let mut off = 0;
-    while off < inode.size as usize {
+    for off in (0..inode.size as usize).step_by(size_of::<Dirent>()) {
         let mut dirent: Dirent = unsafe { MaybeUninit::zeroed().assume_init() };
         if !readi(inode, off, &mut dirent) {
             return None;
         }
 
-        todo!("dirlookup()");
+        // This dirent contain nothing
+        if dirent.inum == 0 {
+            continue;
+        }
+
+        let s = from_utf8(&dirent.name).expect("from_utf8(dirent.name)");
+        if (name == s) {
+            todo!("dirlookup match");
+        }
     }
 
-    todo!("dirlookup()");
+    None
 }
 
 // Find the corresponding inode by the path
@@ -176,7 +184,11 @@ pub fn path_to_inode(mut path: &str) -> Option<Inode> {
         }
 
         let next = dirlookup(&inode, parent);
-        path = file_path;
+        if let Some(next) = next {
+            inode = next;
+            path = file_path;
+        }
+        return None;
     }
 
     Some(inode)

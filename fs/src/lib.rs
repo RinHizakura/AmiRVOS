@@ -28,7 +28,7 @@ pub const ROOTINO: u32 = 1;
 pub const MAGIC: u32 = 0x52696B6F;
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct SuperBlock {
     pub magic: u32,
     // Size of file system image (blocks)
@@ -64,7 +64,7 @@ pub const NINDIRECT: usize = BLKSZ / size_of::<u32>();
 pub const FILE_MAX_LINK: usize = NDIRECT + NINDIRECT;
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Inode {
     // File type
     pub typ: u16,
@@ -85,7 +85,7 @@ unsafe impl plain::Plain for Inode {}
 
 pub const DIRSIZ: usize = 14;
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Dirent {
     pub inum: u16,
     pub name: [u8; DIRSIZ],
