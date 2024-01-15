@@ -10,6 +10,7 @@ pub const BLKSZ: usize = 1024;
 pub const MAXOPBLOCKS: usize = 10;
 
 pub const INODES_PER_BLK: usize = BLKSZ / size_of::<Inode>();
+pub const BIT_PER_BLK: usize = BLKSZ * 8;
 pub const NINODES: u32 = 200;
 
 // size of file system in blocks
@@ -94,4 +95,9 @@ pub struct Dirent {
 pub fn iblock(sb: &SuperBlock, inum: u32) -> u32 {
     // According to the inode number, evaluate the block to place it
     inum / INODES_PER_BLK as u32 + sb.inodestart
+}
+
+// The bitmap block for the given block
+pub fn block_bmap(sb: &SuperBlock, block_no: u32) -> u32 {
+    block_no / BIT_PER_BLK as u32 + sb.bmapstart
 }

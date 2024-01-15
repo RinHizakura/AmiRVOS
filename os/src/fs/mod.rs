@@ -52,11 +52,60 @@ fn find_inode(inum: u32) -> Inode {
     *to_struct::<Inode>(&buf)
 }
 
+fn balloc() -> u32 {
+    /* Linear checking every bit in every bitmap block for the
+     * block that is marked as non-allocated. */
+    for bmap_no in 0..BITMAP_BLKSZ {
+        let bmap_block = SB.lock().bmapstart + bmap_no;
+        let mut bitmap = bread(bmap_block);
+
+        for bit in 0..(BIT_PER_BLK as u32) {
+            let bytes = bit as usize / 8;
+            let mask = 1 << (bit % 8);
+            if bitmap[bytes] & mask == 0 {
+                bitmap[bytes] |= mask;
+                bwrite(bmap_block, bitmap);
+                return bmap_no * BIT_PER_BLK as u32 + bit;
+            }
+        }
+    }
+
+    return 0;
+}
+
 // Get the block number for the request data offset
-fn bmap(inode: &Inode, off: usize) -> u32 {
+fn find_block(inode: &Inode, off: usize) -> u32 {
     let block_off = off / BLKSZ;
 
-    todo!("bmap()");
+    // For the first NDIRECT blocks, they are direct linked
+    let block_no = if block_off < NDIRECT {
+        inode.directs[block_off]
+    } else {
+        todo!("find_block() indirect");
+    };
+
+    block_no
+}
+
+// Get the block number for the request data offset
+fn find_or_alloc_block(inode: &mut Inode, off: usize) -> u32 {
+    let block_no = find_block(inode, off);
+    if block_no != 0 {
+        return block_no;
+    }
+
+    /* If there is no corresponding block on this link, allocating
+     * one for it. */
+    let block_no = balloc();
+    let block_off = off / BLKSZ;
+
+    if block_off < NDIRECT {
+        inode.directs[block_off] = block_no;
+    } else {
+        todo!("find_or_alloc_block() indirect");
+    }
+
+    block_no
 }
 
 // Read data from Inode
@@ -70,10 +119,8 @@ fn readi<T>(inode: &Inode, mut off: usize, dst: &mut T) -> bool {
     let size = size.min(inode.size as usize - off);
 
     while total < size {
-        let block_num = bmap(inode, off);
-        if block_num == 0 {
-            break;
-        }
+        let block_num = find_block(inode, off);
+        assert!(block_num != 0);
 
         let buf = bread(block_num);
         let n = (size - total).min(BLKSZ - off % BLKSZ);
