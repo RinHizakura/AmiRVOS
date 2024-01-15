@@ -12,7 +12,7 @@ use fs::*;
 thread_local! {
     static FSFILE: RefCell<File> =
                     RefCell::new(unsafe { MaybeUninit::zeroed().assume_init() });
-    static ALLOC_BLOCK: Cell<u64> =
+    static ALLOC_BLOCK: Cell<u32> =
                     Cell::new(unsafe { MaybeUninit::zeroed().assume_init() });
     // NOTE: This is a 1-based value
     static NEXT_INUM: Cell<u32> = Cell::new(1);
@@ -28,25 +28,25 @@ fn as_slice<T: Sized>(p: &T) -> &[u8] {
     unsafe { slice::from_raw_parts((p as *const T) as *const u8, size_of::<T>()) }
 }
 
-fn wsect(sec: u64, buf: &[u8]) {
+fn wsect(sec: u32, buf: &[u8]) {
     let off = FSFILE.with(|f| {
         f.borrow_mut()
-            .seek(SeekFrom::Start(sec * BLKSZ as u64))
+            .seek(SeekFrom::Start(sec as u64 * BLKSZ as u64))
             .expect("seek for wsect fail")
     });
-    assert!(off as u64 == sec * BLKSZ as u64);
+    assert!(off == sec as u64 * BLKSZ as u64);
 
     let size = FSFILE.with(|f| f.borrow_mut().write(buf).expect("write for wsect fail"));
     assert!(size == BLKSZ);
 }
 
-fn rsect(sec: u64, buf: &mut [u8]) {
+fn rsect(sec: u32, buf: &mut [u8]) {
     let off = FSFILE.with(|f| {
         f.borrow_mut()
-            .seek(SeekFrom::Start(sec * BLKSZ as u64))
+            .seek(SeekFrom::Start(sec as u64 * BLKSZ as u64))
             .expect("seek for rsect fail")
     });
-    assert!(off as u64 == sec * BLKSZ as u64);
+    assert!(off == sec as u64 * BLKSZ as u64);
 
     let size = FSFILE.with(|f| f.borrow_mut().read(buf).expect("read for rsect fail"));
     assert!(size == BLKSZ);
@@ -56,7 +56,7 @@ fn rinode(sb: &SuperBlock, inum: u32) -> Inode {
     let mut buf = [0; BLKSZ];
 
     let block = iblock(sb, inum);
-    rsect(block as u64, &mut buf);
+    rsect(block, &mut buf);
 
     assert!(inum > 0);
     let start = ((inum - 1) as usize % INODES_PER_BLK) * size_of::<Inode>();
@@ -71,7 +71,7 @@ fn winode(sb: &SuperBlock, inum: u32, inode: Inode) {
 
     // Read, write, and modify
     let block = iblock(sb, inum);
-    rsect(block as u64, &mut buf);
+    rsect(block, &mut buf);
 
     assert!(inum > 0);
     let start = ((inum - 1) as usize % INODES_PER_BLK) * size_of::<Inode>();
@@ -79,7 +79,7 @@ fn winode(sb: &SuperBlock, inum: u32, inode: Inode) {
     let inode_ptr = to_struct::<Inode>(&mut buf[start..end]);
 
     *inode_ptr = inode;
-    wsect(block as u64, &buf);
+    wsect(block, &buf);
 }
 
 fn alloc_inode(sb: &SuperBlock, typ: u16) -> u32 {
@@ -114,12 +114,16 @@ fn iappend(sb: &SuperBlock, inum: u32, data: &[u8]) {
         let nlink = (end + off) / BLKSZ;
         assert!(nlink < FILE_MAX_LINK);
 
-        let block_num;
+        let mut block_num;
         if nlink < NDIRECT {
             /* The first NDIRECT links are directly linked */
-            block_num = ALLOC_BLOCK.get();
-            inode.directs[nlink] = block_num as u32;
-            ALLOC_BLOCK.set(block_num + 1);
+            block_num = inode.directs[nlink];
+
+            if block_num == 0 {
+                block_num = ALLOC_BLOCK.get();
+                inode.directs[nlink] = block_num;
+                ALLOC_BLOCK.set(block_num + 1);
+            }
         } else {
             // TODO: Support larger file size which requires indirect linking
             todo!();
@@ -169,7 +173,7 @@ fn main() {
     );
 
     for i in 0..FS_BLKSZ {
-        wsect(i as u64, &[0; BLKSZ]);
+        wsect(i as u32, &[0; BLKSZ]);
     }
 
     /* In this design, we have the following metadata. Sequentially from
@@ -185,7 +189,7 @@ fn main() {
     let nblocks = FS_BLKSZ - nmeta;
 
     // There are nmeta blocks allocated currently
-    ALLOC_BLOCK.set(nmeta as u64);
+    ALLOC_BLOCK.set(nmeta as u32);
 
     println!(
         "Total {} = 1 boot + 1 superblock + {} log + {} inode + {} bitmap + {} data",
@@ -226,5 +230,5 @@ fn main() {
     for i in 0..total_used {
         buf[i as usize / 8] |= 1 << (i % 8);
     }
-    wsect(sb.bmapstart as u64, &buf);
+    wsect(sb.bmapstart, &buf);
 }
