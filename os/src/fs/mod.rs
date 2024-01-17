@@ -32,27 +32,14 @@ pub fn init() {
 }
 
 // Seperate the first path entry from the path string
-pub fn parse_first_path<'a>(path: &'a str) -> Option<(&'a str, &'a str)> {
+fn parse_first_path<'a>(path: &'a str) -> Option<(&'a str, &'a str)> {
     // TODO: The implementation should be fixed to meet the expected result
     if path.len() == 0 {
         return None;
     }
+
     let path = path.trim();
     if let Some(result) = path.split_once('/') {
-        Some(result)
-    } else {
-        Some((path, ""))
-    }
-}
-
-// Seperate the last path entry from the path string
-pub fn parse_last_path<'a>(path: &'a str) -> Option<(&'a str, &'a str)> {
-    // TODO: The implementation should be fixed to meet the expected result
-    if path.len() == 0 {
-        return None;
-    }
-    let path = path.trim();
-    if let Some(result) = path.rsplit_once('/') {
         Some(result)
     } else {
         Some((path, ""))

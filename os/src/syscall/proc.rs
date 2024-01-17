@@ -3,7 +3,7 @@ use core::str::from_utf8;
 
 use fs::{Inode, T_DEVICE};
 
-use crate::fs::{parse_last_path, path_to_inode, MAXPATH, O_CREATE};
+use crate::fs::{path_to_inode, MAXPATH, O_CREATE};
 use crate::sched;
 use crate::syscall::syscall_args;
 use crate::syscall::types::*;
@@ -19,14 +19,33 @@ fn fetchstr(addr: usize, buf: &mut [u8]) -> Option<usize> {
     buf.iter().position(|&w| w == 0)
 }
 
+// Seperate the last path entry from the path string
+fn path_to_parent_file(path: &str) -> Option<(&str, &str)> {
+    // TODO: The implementation should be fixed to meet the expected result
+    if path.len() == 0 {
+        return None;
+    }
+
+    let path = path.trim();
+    if let Some((parent, file)) = path.rsplit_once('/') {
+        if parent == "" {
+            // Consider the case when parent is root
+            Some(("/", file))
+        } else {
+            Some((parent, file))
+        }
+    } else {
+        Some(("", path))
+    }
+}
+
 fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<Inode> {
-    let result = parse_last_path(path);
+    let result = path_to_parent_file(path);
     if result.is_none() {
         return None;
     }
 
     let (mut path, file) = result.unwrap();
-    // TODO: Consider the case when parent is root, can we do this simpler?
     if path == "" {
         path = "/";
     }
