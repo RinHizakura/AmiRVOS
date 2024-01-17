@@ -31,13 +31,28 @@ pub fn init() {
     println!("nb = {:x}", SB.lock().nblocks);
 }
 
-// Get parent directory and file path from a path
-fn parse_path<'a>(path: &'a str) -> Option<(&'a str, &'a str)> {
+// Seperate the first path entry from the path string
+pub fn parse_first_path<'a>(path: &'a str) -> Option<(&'a str, &'a str)> {
+    // TODO: The implementation should be fixed to meet the expected result
     if path.len() == 0 {
         return None;
     }
     let path = path.trim();
     if let Some(result) = path.split_once('/') {
+        Some(result)
+    } else {
+        Some((path, ""))
+    }
+}
+
+// Seperate the last path entry from the path string
+pub fn parse_last_path<'a>(path: &'a str) -> Option<(&'a str, &'a str)> {
+    // TODO: The implementation should be fixed to meet the expected result
+    if path.len() == 0 {
+        return None;
+    }
+    let path = path.trim();
+    if let Some(result) = path.rsplit_once('/') {
         Some(result)
     } else {
         Some((path, ""))
@@ -142,7 +157,7 @@ fn readi<T>(inode: &Inode, mut off: usize, dst: &mut T) -> bool {
 }
 
 // Find the directory's Inode under current Inode
-fn dirlookup(inode: &Inode, name: &str) -> Option<Inode> {
+pub fn dirlookup(inode: &Inode, name: &str) -> Option<Inode> {
     assert!(inode.typ == T_DIR);
 
     for off in (0..inode.size as usize).step_by(size_of::<Dirent>()) {
@@ -157,7 +172,7 @@ fn dirlookup(inode: &Inode, name: &str) -> Option<Inode> {
         }
 
         let s = from_utf8(&dirent.name).expect("from_utf8(dirent.name)");
-        if (name == s) {
+        if name == s {
             todo!("dirlookup match");
         }
     }
@@ -169,22 +184,25 @@ fn dirlookup(inode: &Inode, name: &str) -> Option<Inode> {
 pub fn path_to_inode(mut path: &str) -> Option<Inode> {
     /* FIXME: We only support to use the absolute path which
      * starting from root now. Allow relative path in the future. */
-    assert!(path.chars().nth(0) == Some('/'));
+    let mut inode;
+    if path.chars().nth(0) == Some('/') {
+        path = &path[1..];
+        inode = find_inode(ROOTINO);
+    } else {
+        todo!("path_to_inode() not start from node");
+    }
 
-    let mut inode = find_inode(ROOTINO);
-
-    while let Some((parent, file_path)) = parse_path(path) {
-        println!("parent {} file {}", parent, file_path);
-        /* This parent is not a directory, but the path requires an
+    while let Some((first, path)) = parse_first_path(path) {
+        println!("{} : {}", first, path);
+        /* This is not a directory, but the path requires an
          * undering file. This is not a valid path. */
-        if inode.typ != T_DIR && file_path != "" {
+        if inode.typ != T_DIR && path != "" {
             return None;
         }
 
-        let next = dirlookup(&inode, parent);
+        let next = dirlookup(&inode, first);
         if let Some(next) = next {
             inode = next;
-            path = file_path;
         }
         return None;
     }

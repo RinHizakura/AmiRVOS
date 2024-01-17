@@ -1,6 +1,7 @@
 use crate::sched;
 
 mod proc;
+pub mod types;
 
 // https://elixir.bootlin.com/linux/latest/source/include/uapi/asm-generic/unistd.h
 /* FIXME: Note: These syscall numbers should match syscall.asm.

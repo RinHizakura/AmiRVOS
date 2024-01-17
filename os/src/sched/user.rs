@@ -2,7 +2,8 @@
  * put on disk image. Now we just embed it in kernel image for simply
  * testing. */
 
-use core::ffi::{c_int, c_short};
+use crate::syscall::types::*;
+use core::ffi::c_int;
 
 const O_RDWR: c_int = 0x002;
 
@@ -10,7 +11,7 @@ const O_RDWR: c_int = 0x002;
 pub extern "C" fn userinit() {
     extern "C" {
         fn open(path: *const u8, flag: c_int) -> c_int;
-        fn mknod(path: *const u8, mode: c_short, dev: c_short) -> c_int;
+        fn mknod(path: *const u8, mode: mode_t, dev: dev_t) -> c_int;
         fn write();
     }
 
