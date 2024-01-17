@@ -173,8 +173,6 @@ pub fn path_to_inode(mut path: &str) -> Option<Inode> {
 
     let mut inode = find_inode(ROOTINO);
 
-    println!("inode {}", inode.size);
-
     while let Some((parent, file_path)) = parse_path(path) {
         println!("parent {} file {}", parent, file_path);
         /* This parent is not a directory, but the path requires an

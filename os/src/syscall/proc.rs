@@ -22,13 +22,16 @@ pub fn sys_open() -> c_int {
     let flag = syscall_args(1) as c_int;
 
     let mut path = [0; MAXPATH];
-    let n = fetchstr(path_addr, &mut path);
+    let _n = fetchstr(path_addr, &mut path);
 
     if flag & O_CREATE == O_CREATE {
         todo!("sys_open O_CREATE");
     } else {
         let inode = path_to_inode(from_utf8(&path).expect("open path"));
-        todo!("sys_open !O_CREATE");
+        // The file is not existing
+        if inode.is_none() {
+            return -1;
+        }
     }
 
     todo!("sys_open");

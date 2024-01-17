@@ -99,7 +99,14 @@ pub fn user_trap_handler() {
             cpu::w_sip(sip_val);
             sched::do_sched();
         }
-        sTrap::Exception(sException::UserEnvCall) => syscall::syscall_handler(),
+        sTrap::Exception(sException::UserEnvCall) => {
+            unsafe {
+                /* Return to the next instruction after ecall for this case */
+                (*frame).epc += 4;
+            }
+
+            syscall::syscall_handler();
+        }
         _ => panic!(
             "U=Interrupted: {:?}, {:X} {:X}",
             scause.cause(),
