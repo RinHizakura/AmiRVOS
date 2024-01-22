@@ -5,7 +5,7 @@ use core::str::from_utf8;
 
 use crate::bio::*;
 use crate::lock::Locked;
-use crate::utils::cast::to_struct;
+use crate::utils::cast::*;
 
 use fs::*;
 use lazy_static::lazy_static;
@@ -55,20 +55,31 @@ fn find_inode(inum: u32) -> Inode {
     *to_struct::<Inode>(&buf)
 }
 
-fn balloc() -> u32 {
-    /* Linear checking every bit in every bitmap block for the
-     * block that is marked as non-allocated. */
-    for bmap_no in 0..BITMAP_BLKSZ {
-        let bmap_block = SB.lock().bmapstart + bmap_no;
-        let mut bitmap = bread(bmap_block);
+pub fn alloc_inode(typ: u16, major: u16, minor: u16) -> u32 {
+    /* Linear checking every inode in every inode block for the
+     * inode that is marked as non-allocated. */
+    for iblock_no in 0..INODE_BLKSZ {
+        let iblock = SB.lock().inodestart + iblock_no;
+        let mut inodes = bread(iblock);
 
-        for bit in 0..(BIT_PER_BLK as u32) {
-            let bytes = bit as usize / 8;
-            let mask = 1 << (bit % 8);
-            if bitmap[bytes] & mask == 0 {
-                bitmap[bytes] |= mask;
-                bwrite(bmap_block, bitmap);
-                return bmap_no * BIT_PER_BLK as u32 + bit;
+        for i in 0..(INODES_PER_BLK as u32) {
+            let start = i as usize * size_of::<Inode>();
+            let end = start + size_of::<Inode>();
+            let inode_ptr = to_struct_mut::<Inode>(&mut inodes[start..end]);
+
+            // typ == 0 means this is a free inode
+            if inode_ptr.typ == 0 {
+                *inode_ptr = Inode {
+                    typ: typ,
+                    major: major,
+                    minor: minor,
+                    nlink: 1,
+                    size: 0,
+                    directs: [0; NDIRECT],
+                    indirect: 0,
+                };
+                bwrite(iblock, inodes);
+                return iblock_no * INODES_PER_BLK as u32 + i;
             }
         }
     }
@@ -99,7 +110,7 @@ fn find_or_alloc_block(inode: &mut Inode, off: usize) -> u32 {
 
     /* If there is no corresponding block on this link, allocating
      * one for it. */
-    let block_no = balloc();
+    let block_no = alloc_block();
     let block_off = off / BLKSZ;
 
     if block_off < NDIRECT {
@@ -109,6 +120,27 @@ fn find_or_alloc_block(inode: &mut Inode, off: usize) -> u32 {
     }
 
     block_no
+}
+
+fn alloc_block() -> u32 {
+    /* Linear checking every bit in every bitmap block for the
+     * block that is marked as non-allocated. */
+    for bmap_no in 0..BITMAP_BLKSZ {
+        let bmap_block = SB.lock().bmapstart + bmap_no;
+        let mut bitmap = bread(bmap_block);
+
+        for bit in 0..(BIT_PER_BLK as u32) {
+            let bytes = bit as usize / 8;
+            let mask = 1 << (bit % 8);
+            if bitmap[bytes] & mask == 0 {
+                bitmap[bytes] |= mask;
+                bwrite(bmap_block, bitmap);
+                return bmap_no * BIT_PER_BLK as u32 + bit;
+            }
+        }
+    }
+
+    return 0;
 }
 
 // Read data from Inode

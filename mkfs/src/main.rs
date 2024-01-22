@@ -18,7 +18,7 @@ thread_local! {
     static NEXT_INUM: Cell<u32> = Cell::new(1);
 }
 
-pub fn to_struct<T: plain::Plain>(args: &mut [u8]) -> &mut T {
+pub fn to_struct_mut<T: plain::Plain>(args: &mut [u8]) -> &mut T {
     let size = size_of::<T>();
     let slice = &mut args[0..size];
     return plain::from_mut_bytes::<T>(slice).expect("Fail to cast bytes to Args");
@@ -61,7 +61,7 @@ fn rinode(sb: &SuperBlock, inum: u32) -> Inode {
     assert!(inum > 0);
     let start = ((inum - 1) as usize % INODES_PER_BLK) * size_of::<Inode>();
     let end = start + size_of::<Inode>();
-    let inode_ptr = to_struct::<Inode>(&mut buf[start..end]);
+    let inode_ptr = to_struct_mut::<Inode>(&mut buf[start..end]);
 
     *inode_ptr
 }
@@ -76,7 +76,7 @@ fn winode(sb: &SuperBlock, inum: u32, inode: Inode) {
     assert!(inum > 0);
     let start = ((inum - 1) as usize % INODES_PER_BLK) * size_of::<Inode>();
     let end = start + size_of::<Inode>();
-    let inode_ptr = to_struct::<Inode>(&mut buf[start..end]);
+    let inode_ptr = to_struct_mut::<Inode>(&mut buf[start..end]);
 
     *inode_ptr = inode;
     wsect(block, &buf);

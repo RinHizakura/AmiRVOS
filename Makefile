@@ -18,13 +18,19 @@ GIT_HOOKS   := $(CURDIR)/.git/hooks/applied
 
 .PHONY: build asm clean qemu
 
-all: build $(GIT_HOOKS)
+all: $(KERNEL_FILE) $(RFS_FILE) $(GIT_HOOKS)
 
 $(GIT_HOOKS):
 	scripts/install-git-hooks
 
-build:
+# Force the generation of FS image
+rebuild:
+	cargo -Z unstable-options -C $(MKFS) run $(OPT) $(RFS_FILE_NAME)
+
+$(KERNEL_FILE):
 	cargo -Z unstable-options -C $(KERNEL) build $(OPT)
+
+$(RFS_FILE):
 	cargo -Z unstable-options -C $(MKFS) run $(OPT) $(RFS_FILE_NAME)
 
 clean:
@@ -32,7 +38,7 @@ clean:
 	@cargo -Z unstable-options -C $(MKFS) clean
 	$(RM) $(RFS_FILE)
 
-qemu: build
+qemu: $(KERNEL_FILE) $(RFS_FILE)
 	@qemu-system-riscv64          \
 		-machine virt         \
 		-cpu rv64             \

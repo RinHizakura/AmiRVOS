@@ -3,7 +3,7 @@ use core::str::from_utf8;
 
 use fs::{Inode, T_DEVICE};
 
-use crate::fs::{path_to_inode, MAXPATH, O_CREATE};
+use crate::fs::{alloc_inode, dirlookup, path_to_inode, MAXPATH, O_CREATE};
 use crate::sched;
 use crate::syscall::syscall_args;
 use crate::syscall::types::*;
@@ -52,6 +52,15 @@ fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<Inode> {
     if parent_inode.is_none() {
         return None;
     }
+
+    let parent_inode = parent_inode.unwrap();
+    let file_inode = dirlookup(&parent_inode, file);
+    // The inode for the file already exists
+    if let Some(inode) = file_inode {
+        todo!("create() existed file");
+    }
+
+    let file_inum = alloc_inode(typ, major, minor);
 
     todo!("create")
 }
