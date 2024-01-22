@@ -46,9 +46,6 @@ fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<Inode> {
     }
 
     let (mut path, file) = result.unwrap();
-    if path == "" {
-        path = "/";
-    }
     println!("parent = {}, file = {}", path, file);
 
     let parent_inode = path_to_inode(path);
