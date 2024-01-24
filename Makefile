@@ -16,22 +16,23 @@ KERNEL_FILE := $(KERNEL)/target/$(TARGET)/$(MODE)/os
 RFS_FILE    := $(MKFS)/$(RFS_FILE_NAME)
 GIT_HOOKS   := $(CURDIR)/.git/hooks/applied
 
-.PHONY: build asm clean qemu
+.PHONY: FORCE all clean qemu debug
+
+FORCE:
 
 all: $(KERNEL_FILE) $(RFS_FILE) $(GIT_HOOKS)
 
 $(GIT_HOOKS):
 	scripts/install-git-hooks
 
-# Force the generation of FS image
-rebuild:
-	cargo -Z unstable-options -C $(MKFS) run $(OPT) $(RFS_FILE_NAME)
-
-$(KERNEL_FILE):
-	cargo -Z unstable-options -C $(KERNEL) build $(OPT)
-
 $(RFS_FILE):
+	cargo -Z unstable-options -C $(MKFS) build $(OPT)
 	cargo -Z unstable-options -C $(MKFS) run $(OPT) $(RFS_FILE_NAME)
+
+# Force to run build on the kernel image, so we can reflect the change of file.
+# For rfs image, it only build when we don't have one
+$(KERNEL_FILE): FORCE
+	cargo -Z unstable-options -C $(KERNEL) build $(OPT)
 
 clean:
 	@cargo -Z unstable-options -C $(KERNEL) clean
