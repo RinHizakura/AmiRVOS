@@ -80,10 +80,10 @@ struct Disk {
      *  for more information */
     status: [u8; QSIZE],
 
-    /* FIXME: The raw pointer of waiting state to synchronize between normal
+    /* FIXME: The waiting state to synchronize between normal
      * routine and interrupt handler. Check whether we have better approach to
-     * avoid raw pointer which is unsafe. */
-    wait: [*mut bool; QSIZE],
+     * avoid naive synchronization like this. */
+    wait: [bool; QSIZE],
 
     // It marks whether a descriptor entry is free to be used
     free_desc: [bool; QSIZE],
@@ -103,7 +103,7 @@ impl Disk {
 
             req: [VirtioBlkReq::default(); QSIZE],
             status: [0; QSIZE],
-            wait: [null_mut(); QSIZE],
+            wait: [false; QSIZE],
             free_desc: [true; QSIZE],
 
             used_idx: 0,
@@ -341,8 +341,7 @@ pub fn disk_rw(buf: &[u8], offset: usize, is_write: bool) {
 
     /* Set the flag and wait for the interrupt handler to reset, which
      * means the request is completed */
-    let mut wait = true;
-    disk.wait[req_idx] = &mut wait as *mut bool;
+    disk.wait[req_idx] = true;
 
     // Notify queue 0 for the request
     DEV.write(VIRTIO_MMIO_QUEUE_NOTIFY, 0);
@@ -356,7 +355,18 @@ pub fn disk_rw(buf: &[u8], offset: usize, is_write: bool) {
      * future. */
     DISK.release(disk);
 
-    while wait {}
+    /* FIXME: Here we'll race the lock with virtio::bl::irq_handler(), so
+     * we have to synchronize for the share state. Looking for better
+     * synchronization mechanism to do this in prettier and readable
+     * implementation. */
+    let mut stop_wait = true;
+    while stop_wait {
+        let mut disk = DISK.acquire();
+        if !disk.wait[req_idx] {
+            stop_wait = false;
+        }
+        DISK.release(disk);
+    }
 
     // Get the lock again and release allocated descriptors
     let mut disk = DISK.acquire();
@@ -385,7 +395,7 @@ pub fn irq_handler() {
         assert!(disk.status[id] == VIRTIO_BLK_S_OK);
 
         // Notify the request is completed
-        unsafe { *disk.wait[id] = false };
+        disk.wait[id] = false;
 
         disk.used_idx += 1;
     }

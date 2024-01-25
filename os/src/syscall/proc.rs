@@ -62,7 +62,7 @@ fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<Inode> {
 
     let file_inum = alloc_inode(typ, major, minor);
 
-    todo!("create")
+    todo!("create()")
 }
 
 pub fn sys_open() -> c_int {
