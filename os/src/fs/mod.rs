@@ -78,7 +78,7 @@ pub fn alloc_inode(typ: u16, major: u16, minor: u16) -> u32 {
                     directs: [0; NDIRECT],
                     indirect: 0,
                 };
-                bwrite(iblock, inodes);
+                bwrite(iblock, &inodes);
                 return iblock_no * INODES_PER_BLK as u32 + i;
             }
         }
@@ -134,7 +134,7 @@ fn alloc_block() -> u32 {
             let mask = 1 << (bit % 8);
             if bitmap[bytes] & mask == 0 {
                 bitmap[bytes] |= mask;
-                bwrite(bmap_block, bitmap);
+                bwrite(bmap_block, &bitmap);
                 return bmap_no * BIT_PER_BLK as u32 + bit;
             }
         }
