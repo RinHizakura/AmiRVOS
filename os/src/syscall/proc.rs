@@ -107,12 +107,8 @@ pub fn sys_mknod() -> c_int {
     let mut path = [0; MAXPATH];
     let _n = fetchstr(path_addr, &mut path);
 
-    let inode = create(
-        from_utf8(&path).expect("mknod path"),
-        T_DEVICE,
-        MAJOR(dev),
-        MINOR(dev),
-    );
+    let path = from_utf8(&path).expect("mknod path");
+    let inode = create(path, T_DEVICE, MAJOR(dev), MINOR(dev));
 
     todo!("mknod()");
 

@@ -91,6 +91,18 @@ pub struct Dirent {
     pub name: [u8; DIRSIZ],
 }
 
+impl Dirent {
+    pub fn update(&mut self, inum: u32, s: &str) {
+        let slen = s.len();
+        // At least the last '\0' should be retained
+        assert!(slen < DIRSIZ - 1);
+
+        // TODO: take care of truacation after casting
+        self.inum = inum as u16;
+        self.name[0..slen].copy_from_slice(s.as_bytes());
+    }
+}
+
 // Block containing inode i
 pub fn iblock(sb: &SuperBlock, inum: u32) -> u32 {
     // According to the inode number, evaluate the block to place it

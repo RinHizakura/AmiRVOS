@@ -142,17 +142,9 @@ fn iappend(sb: &SuperBlock, inum: u32, data: &[u8]) {
     winode(sb, inum, inode);
 }
 
-fn create_dent(sb: &SuperBlock, inum: u32, s: &str) {
-    let mut name_buf: [u8; DIRSIZ] = [0; DIRSIZ];
-    let slen = s.len();
-    // At least the last '\0' should be retained
-    assert!(slen < DIRSIZ - 1);
-
-    name_buf[0..slen].copy_from_slice(s.as_bytes());
-    let dirent = Dirent {
-        inum: inum as u16,
-        name: name_buf,
-    };
+fn create_dent(sb: &SuperBlock, inum: u32, name: &str) {
+    let mut dirent: Dirent = unsafe { MaybeUninit::zeroed().assume_init() };
+    dirent.update(inum, name);
     iappend(&sb, inum, as_slice(&dirent));
 }
 

@@ -200,6 +200,30 @@ pub fn dirlookup(inode: &Inode, name: &str) -> Option<(Inode, u32)> {
 }
 
 pub fn dirlink(inode: &Inode, name: &str, inum: u32) {
+    /* FIXME: Make a existing link is not expected for current
+     * implementation, but we may have to error handling this in the
+     * future */
+    assert!(dirlookup(inode, name).is_none());
+
+    let mut off = 0;
+    let mut dirent: Dirent = unsafe { MaybeUninit::zeroed().assume_init() };
+    while off < inode.size as usize {
+        if !readi(inode, off, &mut dirent) {
+            panic!("dirlink() get dirent fail");
+        }
+
+        /* If there is an empty dirent, just making link with it.
+         * Otherwise we will extend the inode size(by writei)to append
+         * a new entry */
+        if dirent.inum == 0 {
+            break;
+        }
+
+        off += size_of::<Dirent>();
+    }
+
+    dirent.update(inum, name);
+
     todo!("dirlink()");
 }
 
