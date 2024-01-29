@@ -47,7 +47,7 @@ fn parse_first_path<'a>(path: &'a str) -> Option<(&'a str, &'a str)> {
 }
 
 // Find the corresponding inode by inode number
-fn find_inode(inum: u32) -> Inode {
+pub fn find_inode(inum: u32) -> Inode {
     let buf = bread(iblock(&SB.lock(), ROOTINO));
 
     /* TODO: Optimize by implementing cache for Inode, so we don't need to
@@ -55,7 +55,7 @@ fn find_inode(inum: u32) -> Inode {
     *to_struct::<Inode>(&buf)
 }
 
-pub fn alloc_inode(typ: u16, major: u16, minor: u16) -> u32 {
+pub fn alloc_inode(typ: u16, major: u16, minor: u16, nlink: u16) -> u32 {
     /* Linear checking every inode in every inode block for the
      * inode that is marked as non-allocated. */
     for iblock_no in 0..INODE_BLKSZ {
@@ -73,7 +73,7 @@ pub fn alloc_inode(typ: u16, major: u16, minor: u16) -> u32 {
                     typ: typ,
                     major: major,
                     minor: minor,
-                    nlink: 1,
+                    nlink: nlink,
                     size: 0,
                     directs: [0; NDIRECT],
                     indirect: 0,
@@ -84,7 +84,7 @@ pub fn alloc_inode(typ: u16, major: u16, minor: u16) -> u32 {
         }
     }
 
-    return 0;
+    panic!("alloc_inode() fail: no empty inode");
 }
 
 // Get the block number for the request data offset
@@ -140,7 +140,7 @@ fn alloc_block() -> u32 {
         }
     }
 
-    return 0;
+    panic!("alloc_block() fail: no empty block");
 }
 
 // Read data from Inode
@@ -175,8 +175,8 @@ fn readi<T>(inode: &Inode, mut off: usize, dst: &mut T) -> bool {
     true
 }
 
-// Find the directory's Inode under current Inode
-pub fn dirlookup(inode: &Inode, name: &str) -> Option<Inode> {
+// Find the directory's Inode and its number under current Inode
+pub fn dirlookup(inode: &Inode, name: &str) -> Option<(Inode, u32)> {
     assert!(inode.typ == T_DIR);
 
     for off in (0..inode.size as usize).step_by(size_of::<Dirent>()) {
@@ -199,14 +199,20 @@ pub fn dirlookup(inode: &Inode, name: &str) -> Option<Inode> {
     None
 }
 
+pub fn dirlink(inode: &Inode, name: &str, inum: u32) {
+    todo!("dirlink()");
+}
+
 // Find the corresponding inode by the path
-pub fn path_to_inode(mut path: &str) -> Option<Inode> {
+pub fn path_to_inode(mut path: &str) -> Option<(Inode, u32)> {
     /* FIXME: We only support to use the absolute path which
      * starting from root now. Allow relative path in the future. */
     let mut inode;
+    let mut inum;
     if path.chars().nth(0) == Some('/') {
         path = &path[1..];
-        inode = find_inode(ROOTINO);
+        inum = ROOTINO;
+        inode = find_inode(inum);
     } else {
         todo!("path_to_inode() not start from node");
     }
@@ -221,10 +227,10 @@ pub fn path_to_inode(mut path: &str) -> Option<Inode> {
 
         let next = dirlookup(&inode, first);
         if let Some(next) = next {
-            inode = next;
+            (inode, inum) = next;
         }
         return None;
     }
 
-    Some(inode)
+    Some((inode, inum))
 }

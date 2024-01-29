@@ -1,9 +1,9 @@
 use core::ffi::c_int;
 use core::str::from_utf8;
 
-use fs::{Inode, T_DEVICE};
+use fs::*;
 
-use crate::fs::{alloc_inode, dirlookup, path_to_inode, MAXPATH, O_CREATE};
+use crate::fs::*;
 use crate::sched;
 use crate::syscall::syscall_args;
 use crate::syscall::types::*;
@@ -40,27 +40,31 @@ fn path_to_parent_file(path: &str) -> Option<(&str, &str)> {
 }
 
 fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<Inode> {
-    let result = path_to_parent_file(path);
-    if result.is_none() {
-        return None;
-    }
-
-    let (mut path, file) = result.unwrap();
+    let (mut path, file) = path_to_parent_file(path)?;
     println!("parent = {}, file = {}", path, file);
 
-    let parent_inode = path_to_inode(path);
-    if parent_inode.is_none() {
-        return None;
-    }
-
-    let parent_inode = parent_inode.unwrap();
-    let file_inode = dirlookup(&parent_inode, file);
-    // The inode for the file already exists
-    if let Some(inode) = file_inode {
+    let (parent_inode, parent_inum) = path_to_inode(path)?;
+    if let Some((file_inode, file_inum)) = dirlookup(&parent_inode, file) {
+        // The inode for the file already exists
         todo!("create() existed file");
     }
 
-    let file_inum = alloc_inode(typ, major, minor);
+    /* Note that nlink of directory don't cosider itself(".").
+     * The purpose is to get rid of cyclic ref count */
+    let nlink = 1;
+    // Create inode for this new file/directory
+    let file_inum = alloc_inode(typ, major, minor, nlink);
+    let file_inode = find_inode(file_inum);
+
+    // Link this new file/directory to its parent directory
+    dirlink(&parent_inode, path, file_inum);
+
+    /* Link '.' and '..' to this new directory inode. Since parent("..")
+     * is linked by this directory, we should update parent's inode */
+    if typ == T_DIR {
+        dirlink(&file_inode, ".", file_inum);
+        dirlink(&file_inode, "..", parent_inum);
+    }
 
     todo!("create()")
 }
