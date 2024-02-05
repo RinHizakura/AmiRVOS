@@ -97,9 +97,10 @@ impl Dirent {
         // At least the last '\0' should be retained
         assert!(slen < DIRSIZ - 1);
 
-        // TODO: take care of truacation after casting
+        // TODO: take care of truncation after casting
         self.inum = inum as u16;
         self.name[0..slen].copy_from_slice(s.as_bytes());
+        self.name[slen] = 0;
     }
 }
 
