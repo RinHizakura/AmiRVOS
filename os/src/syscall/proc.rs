@@ -43,7 +43,7 @@ fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<Inode> {
     let (mut path, file) = path_to_parent_file(path)?;
     println!("parent = {}, file = {}", path, file);
 
-    let (parent_inode, parent_inum) = path_to_inode(path)?;
+    let (mut parent_inode, parent_inum) = path_to_inode(path)?;
     if let Some((file_inode, file_inum)) = dirlookup(&parent_inode, file) {
         // The inode for the file already exists
         todo!("create() existed file");
@@ -54,16 +54,16 @@ fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<Inode> {
     let nlink = 1;
     // Create inode for this new file/directory
     let file_inum = alloc_inode(typ, major, minor, nlink);
-    let file_inode = find_inode(file_inum);
+    let mut file_inode = find_inode(file_inum);
 
     // Link this new file/directory to its parent directory
-    dirlink(&parent_inode, path, file_inum);
+    dirlink(&mut parent_inode, path, file_inum);
 
     /* Link '.' and '..' to this new directory inode. Since parent("..")
      * is linked by this directory, we should update parent's inode */
     if typ == T_DIR {
-        dirlink(&file_inode, ".", file_inum);
-        dirlink(&file_inode, "..", parent_inum);
+        dirlink(&mut file_inode, ".", file_inum);
+        dirlink(&mut file_inode, "..", parent_inum);
     }
 
     todo!("create()")

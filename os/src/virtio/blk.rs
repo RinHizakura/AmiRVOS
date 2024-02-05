@@ -1,9 +1,7 @@
 use super::*;
 
-use crate::cpu;
 use crate::lock::Locked;
 use crate::mm::page::zalloc;
-use crate::utils::cast::to_struct;
 
 use core::mem::size_of;
 use core::ptr::null_mut;

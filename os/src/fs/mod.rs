@@ -7,6 +7,7 @@ use crate::bio::*;
 use crate::lock::Locked;
 use crate::utils::cast::*;
 
+use alloc::vec;
 use fs::*;
 use lazy_static::lazy_static;
 
@@ -24,7 +25,8 @@ lazy_static! {
 }
 pub fn init() {
     // Block 1 is where the SuperBlock located at
-    let buf = bread(1);
+    let mut buf = vec![0; BLKSZ];
+    bread(1, &mut buf);
 
     *SB.lock() = *to_struct::<SuperBlock>(&buf);
 
@@ -48,7 +50,8 @@ fn parse_first_path<'a>(path: &'a str) -> Option<(&'a str, &'a str)> {
 
 // Find the corresponding inode by inode number
 pub fn find_inode(inum: u32) -> Inode {
-    let buf = bread(iblock(&SB.lock(), ROOTINO));
+    let mut buf = vec![0; BLKSZ];
+    bread(iblock(&SB.lock(), inum), &mut buf);
 
     /* TODO: Optimize by implementing cache for Inode, so we don't need to
      * traverse for the result every time. */
@@ -56,11 +59,13 @@ pub fn find_inode(inum: u32) -> Inode {
 }
 
 pub fn alloc_inode(typ: u16, major: u16, minor: u16, nlink: u16) -> u32 {
+    let mut inodes = vec![0; BLKSZ];
+
     /* Linear checking every inode in every inode block for the
      * inode that is marked as non-allocated. */
     for iblock_no in 0..INODE_BLKSZ {
         let iblock = SB.lock().inodestart + iblock_no;
-        let mut inodes = bread(iblock);
+        bread(iblock, &mut inodes);
 
         for i in 0..(INODES_PER_BLK as u32) {
             let start = i as usize * size_of::<Inode>();
@@ -123,11 +128,13 @@ fn find_or_alloc_block(inode: &mut Inode, off: usize) -> u32 {
 }
 
 fn alloc_block() -> u32 {
+    let mut bitmap = vec![0; BLKSZ];
+
     /* Linear checking every bit in every bitmap block for the
      * block that is marked as non-allocated. */
     for bmap_no in 0..BITMAP_BLKSZ {
         let bmap_block = SB.lock().bmapstart + bmap_no;
-        let mut bitmap = bread(bmap_block);
+        bread(bmap_block, &mut bitmap);
 
         for bit in 0..(BIT_PER_BLK as u32) {
             let bytes = bit as usize / 8;
@@ -152,12 +159,13 @@ fn readi<T>(inode: &Inode, mut off: usize, dst: &mut T) -> bool {
     let mut total = 0;
     let size = size_of::<T>();
     let size = size.min(inode.size as usize - off);
+    let mut buf = vec![0; BLKSZ];
 
     while total < size {
         let block_num = find_block(inode, off);
         assert!(block_num != 0);
 
-        let buf = bread(block_num);
+        bread(block_num, &mut buf);
         let n = (size - total).min(BLKSZ - off % BLKSZ);
 
         // FIXME: Is it possible to make this safe?
@@ -173,6 +181,11 @@ fn readi<T>(inode: &Inode, mut off: usize, dst: &mut T) -> bool {
     }
 
     true
+}
+
+// Write data to Inode
+fn writei<T>(inode: &mut Inode, mut off: usize, dst: &T) -> bool {
+    todo!("writei()");
 }
 
 // Find the directory's Inode and its number under current Inode
@@ -199,7 +212,7 @@ pub fn dirlookup(inode: &Inode, name: &str) -> Option<(Inode, u32)> {
     None
 }
 
-pub fn dirlink(inode: &Inode, name: &str, inum: u32) {
+pub fn dirlink(inode: &mut Inode, name: &str, inum: u32) {
     /* FIXME: Make a existing link is not expected for current
      * implementation, but we may have to error handling this in the
      * future */
@@ -222,7 +235,11 @@ pub fn dirlink(inode: &Inode, name: &str, inum: u32) {
         off += size_of::<Dirent>();
     }
 
+    assert!(off <= inode.size as usize);
+
     dirent.update(inum, name);
+
+    writei(inode, off, &dirent);
 
     todo!("dirlink()");
 }
