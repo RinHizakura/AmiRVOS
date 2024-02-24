@@ -75,27 +75,22 @@ pub fn alloc_inode(typ: u16, major: u16, minor: u16, nlink: u16) -> u32 {
         bread(iblock, &mut inodes);
 
         for i in 0..(INODES_PER_BLK as u32) {
-            let inum = i + iblock_no * INODES_PER_BLK as u32;
+            let inum = 1 + i + iblock_no * INODES_PER_BLK as u32;
             let inode_ptr = block_inode(&mut inodes, inum);
-
-            // Note: inum 0 is reserved
-            if inum == 0 {
-                continue;
-            }
 
             // typ == 0 means this is a free inode
             if inode_ptr.typ == 0 {
                 *inode_ptr = Inode {
-                    typ: typ,
-                    major: major,
-                    minor: minor,
-                    nlink: nlink,
+                    typ,
+                    major,
+                    minor,
+                    nlink,
                     size: 0,
                     directs: [0; NDIRECT],
                     indirect: 0,
                 };
                 bwrite(iblock, &inodes);
-                return iblock_no * INODES_PER_BLK as u32 + i;
+                return inum;
             }
         }
     }
@@ -240,7 +235,7 @@ fn writei<T>(inode: &mut Inode, mut off: usize, src: &T) -> bool {
     /* For simplicity, here we force to write back the inode to
      * disk without checking if it get modified. Note that find_block()
      * may also change the inode content. */
-    update_inode(inode, 0);
+    update_inode(inode, 1);
 
     true
 }

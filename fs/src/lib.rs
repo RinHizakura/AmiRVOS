@@ -106,13 +106,17 @@ impl Dirent {
 
 // Block containing inode i
 pub fn iblock(sb: &SuperBlock, inum: u32) -> u32 {
+    assert!(inum != 0);
+
     // According to the inode number, evaluate the block to place it
-    inum / INODES_PER_BLK as u32 + sb.inodestart
+    (inum - 1) / INODES_PER_BLK as u32 + sb.inodestart
 }
 
 // Get inode i in the block which contains it
 pub fn block_inode(inodes: &mut [u8], inum: u32) -> &mut Inode {
-    let start = (inum % INODES_PER_BLK as u32) as usize * size_of::<Inode>();
+    assert!(inum != 0);
+
+    let start = ((inum - 1) % INODES_PER_BLK as u32) as usize * size_of::<Inode>();
     let end = start + size_of::<Inode>();
 
     plain::from_mut_bytes::<Inode>(&mut inodes[start..end]).expect("Fail to cast bytes to Inode")
