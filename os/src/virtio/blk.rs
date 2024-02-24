@@ -359,7 +359,7 @@ pub fn disk_rw(buf: &[u8], offset: usize, is_write: bool) {
      * implementation. */
     let mut stop_wait = true;
     while stop_wait {
-        let mut disk = DISK.acquire();
+        let disk = DISK.acquire();
         if !disk.wait[req_idx] {
             stop_wait = false;
         }

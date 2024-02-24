@@ -40,7 +40,7 @@ fn path_to_parent_file(path: &str) -> Option<(&str, &str)> {
 }
 
 fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<Inode> {
-    let (mut path, file) = path_to_parent_file(path)?;
+    let (path, file) = path_to_parent_file(path)?;
     println!("parent = {}, file = {}", path, file);
 
     let (mut parent_inode, parent_inum) = path_to_inode(path)?;

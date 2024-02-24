@@ -18,9 +18,9 @@ GIT_HOOKS   := $(CURDIR)/.git/hooks/applied
 
 .PHONY: FORCE all clean qemu debug
 
-FORCE:
-
 all: $(KERNEL_FILE) $(RFS_FILE) $(GIT_HOOKS)
+
+FORCE:
 
 $(GIT_HOOKS):
 	scripts/install-git-hooks

@@ -1,5 +1,3 @@
-#![feature(const_maybe_uninit_zeroed)]
-
 use std::cell::{Cell, RefCell};
 use std::env;
 use std::fs::{File, OpenOptions};
@@ -16,12 +14,6 @@ thread_local! {
                     Cell::new(unsafe { MaybeUninit::zeroed().assume_init() });
     // NOTE: This is a 1-based value
     static NEXT_INUM: Cell<u32> = Cell::new(1);
-}
-
-pub fn to_struct_mut<T: plain::Plain>(args: &mut [u8]) -> &mut T {
-    let size = size_of::<T>();
-    let slice = &mut args[0..size];
-    return plain::from_mut_bytes::<T>(slice).expect("Fail to cast bytes to Args");
 }
 
 fn as_slice<T: Sized>(p: &T) -> &[u8] {
@@ -59,10 +51,8 @@ fn rinode(sb: &SuperBlock, inum: u32) -> Inode {
     rsect(block, &mut buf);
 
     assert!(inum > 0);
-    let start = ((inum - 1) as usize % INODES_PER_BLK) * size_of::<Inode>();
-    let end = start + size_of::<Inode>();
-    let inode_ptr = to_struct_mut::<Inode>(&mut buf[start..end]);
 
+    let inode_ptr = block_inode(&mut buf, inum);
     *inode_ptr
 }
 
@@ -74,10 +64,8 @@ fn winode(sb: &SuperBlock, inum: u32, inode: Inode) {
     rsect(block, &mut buf);
 
     assert!(inum > 0);
-    let start = ((inum - 1) as usize % INODES_PER_BLK) * size_of::<Inode>();
-    let end = start + size_of::<Inode>();
-    let inode_ptr = to_struct_mut::<Inode>(&mut buf[start..end]);
 
+    let inode_ptr = block_inode(&mut buf, inum);
     *inode_ptr = inode;
     wsect(block, &buf);
 }

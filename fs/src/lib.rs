@@ -110,6 +110,14 @@ pub fn iblock(sb: &SuperBlock, inum: u32) -> u32 {
     inum / INODES_PER_BLK as u32 + sb.inodestart
 }
 
+// Get inode i in the block which contains it
+pub fn block_inode(inodes: &mut [u8], inum: u32) -> &mut Inode {
+    let start = (inum % INODES_PER_BLK as u32) as usize * size_of::<Inode>();
+    let end = start + size_of::<Inode>();
+
+    plain::from_mut_bytes::<Inode>(&mut inodes[start..end]).expect("Fail to cast bytes to Inode")
+}
+
 // The bitmap block for the given block
 pub fn block_bmap(sb: &SuperBlock, block_no: u32) -> u32 {
     block_no / BIT_PER_BLK as u32 + sb.bmapstart

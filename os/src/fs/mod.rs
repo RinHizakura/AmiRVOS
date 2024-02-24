@@ -50,12 +50,19 @@ fn parse_first_path<'a>(path: &'a str) -> Option<(&'a str, &'a str)> {
 
 // Find the corresponding inode by inode number
 pub fn find_inode(inum: u32) -> Inode {
-    let mut buf = vec![0; BLKSZ];
-    bread(iblock(&SB.lock(), inum), &mut buf);
+    let mut inodes = vec![0; BLKSZ];
+    bread(iblock(&SB.lock(), inum), &inodes);
 
     /* TODO: Optimize by implementing cache for Inode, so we don't need to
      * traverse for the result every time. */
-    *to_struct::<Inode>(&buf)
+    *block_inode(&mut inodes, inum)
+}
+
+pub fn update_inode(inode: &Inode, inum: u32) {
+    let mut inodes = vec![0; BLKSZ];
+    bread(iblock(&SB.lock(), inum), &mut inodes);
+
+    todo!("update_inode()")
 }
 
 pub fn alloc_inode(typ: u16, major: u16, minor: u16, nlink: u16) -> u32 {
@@ -68,9 +75,13 @@ pub fn alloc_inode(typ: u16, major: u16, minor: u16, nlink: u16) -> u32 {
         bread(iblock, &mut inodes);
 
         for i in 0..(INODES_PER_BLK as u32) {
-            let start = i as usize * size_of::<Inode>();
-            let end = start + size_of::<Inode>();
-            let inode_ptr = to_struct_mut::<Inode>(&mut inodes[start..end]);
+            let inum = i + iblock_no * INODES_PER_BLK as u32;
+            let inode_ptr = block_inode(&mut inodes, inum);
+
+            // Note: inum 0 is reserved
+            if inum == 0 {
+                continue;
+            }
 
             // typ == 0 means this is a free inode
             if inode_ptr.typ == 0 {
@@ -159,13 +170,13 @@ fn readi<T>(inode: &Inode, mut off: usize, dst: &mut T) -> bool {
     let mut total = 0;
     let size = size_of::<T>();
     let size = size.min(inode.size as usize - off);
-    let mut buf = vec![0; BLKSZ];
+    let buf = vec![0; BLKSZ];
 
     while total < size {
         let block_num = find_block(inode, off);
         assert!(block_num != 0);
 
-        bread(block_num, &mut buf);
+        bread(block_num, &buf);
         let n = (size - total).min(BLKSZ - off % BLKSZ);
 
         // FIXME: Is it possible to make this safe?
@@ -184,8 +195,54 @@ fn readi<T>(inode: &Inode, mut off: usize, dst: &mut T) -> bool {
 }
 
 // Write data to Inode
-fn writei<T>(inode: &mut Inode, mut off: usize, dst: &T) -> bool {
-    todo!("writei()");
+fn writei<T>(inode: &mut Inode, mut off: usize, src: &T) -> bool {
+    let size = size_of::<T>();
+
+    /* The off should only < size to override data in inode,
+     * or = size to append data in inode */
+    if off > inode.size as usize {
+        return false;
+    }
+
+    if (off + size) > (FILE_MAX_LINK * BLKSZ) {
+        return false;
+    }
+
+    let mut total = 0;
+    let mut buf = vec![0; BLKSZ];
+
+    while total < size {
+        let block_num = find_block(inode, off);
+        assert!(block_num != 0);
+
+        bread(block_num, &buf);
+        let n = (size - total).min(BLKSZ - off % BLKSZ);
+
+        // FIXME: Is it possible to make this safe?
+        unsafe {
+            let mut src_ptr = src as *const T as *const u8;
+            src_ptr = src_ptr.add(total);
+            let mut dst_ptr = buf.as_mut_ptr();
+            dst_ptr = dst_ptr.add(off % BLKSZ);
+            ptr::copy_nonoverlapping(src_ptr, dst_ptr, n);
+            // Write back
+            bwrite(block_num, &buf);
+        }
+
+        total += n;
+        off += n;
+    }
+
+    if off > inode.size as usize {
+        inode.size = off as u32;
+    }
+
+    /* For simplicity, here we force to write back the inode to
+     * disk without checking if it get modified. Note that find_block()
+     * may also change the inode content. */
+    update_inode(inode, 0);
+
+    true
 }
 
 // Find the directory's Inode and its number under current Inode
@@ -234,8 +291,6 @@ pub fn dirlink(inode: &mut Inode, name: &str, inum: u32) {
 
         off += size_of::<Dirent>();
     }
-
-    assert!(off <= inode.size as usize);
 
     dirent.update(inum, name);
 
