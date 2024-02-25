@@ -82,6 +82,28 @@ pub struct Inode {
     pub indirect: u32,
 }
 unsafe impl plain::Plain for Inode {}
+impl Inode {
+    pub fn init(&mut self, typ: u16, major: u16, minor: u16, nlink: u16) {
+        *self = Inode {
+            typ,
+            major,
+            minor,
+            nlink,
+            size: 0,
+            directs: [0; NDIRECT],
+            indirect: 0,
+        }
+    }
+
+    pub fn set_free(&mut self) {
+        // typ == 0 means this is a free inode
+        self.typ = 0;
+    }
+
+    pub fn is_free(&self) -> bool {
+        self.typ == 0
+    }
+}
 
 pub const DIRSIZ: usize = 14;
 #[repr(C)]

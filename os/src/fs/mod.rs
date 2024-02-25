@@ -94,17 +94,8 @@ pub fn alloc_inode(typ: u16, major: u16, minor: u16, nlink: u16) -> u32 {
             let inum = 1 + i + iblock_no * INODES_PER_BLK as u32;
             let inode_ptr = block_inode(&mut inodes, inum);
 
-            // typ == 0 means this is a free inode
-            if inode_ptr.typ == 0 {
-                *inode_ptr = Inode {
-                    typ,
-                    major,
-                    minor,
-                    nlink,
-                    size: 0,
-                    directs: [0; NDIRECT],
-                    indirect: 0,
-                };
+            if inode_ptr.is_free() {
+                inode_ptr.init(typ, major, minor, nlink);
                 bwrite(iblock, &inodes);
                 return inum;
             }
@@ -112,6 +103,10 @@ pub fn alloc_inode(typ: u16, major: u16, minor: u16, nlink: u16) -> u32 {
     }
 
     panic!("alloc_inode() fail: no empty inode");
+}
+
+pub fn free_inode(fsinode: FsInode) {
+    todo!("free_inode()");
 }
 
 // Get the block number for the request data offset
@@ -284,11 +279,10 @@ pub fn dirlookup(fsinode: &FsInode, name: &str) -> Option<(FsInode, u32)> {
     None
 }
 
-pub fn dirlink(fsinode: &mut FsInode, name: &str, inum: u32) {
-    /* FIXME: Make a existing link is not expected for current
-     * implementation, but we may have to error handling this in the
-     * future */
-    assert!(dirlookup(fsinode, name).is_none());
+pub fn dirlink(fsinode: &mut FsInode, name: &str, inum: u32) -> bool {
+    if dirlookup(fsinode, name).is_none() {
+        return false;
+    }
 
     let mut off = 0;
     let mut dirent: Dirent = unsafe { MaybeUninit::zeroed().assume_init() };
@@ -309,9 +303,11 @@ pub fn dirlink(fsinode: &mut FsInode, name: &str, inum: u32) {
 
     dirent.update(inum, name);
 
-    writei(fsinode, off, &dirent);
+    if !writei(fsinode, off, &dirent) {
+        return false;
+    }
 
-    todo!("dirlink()");
+    true
 }
 
 // Find the corresponding inode by the path

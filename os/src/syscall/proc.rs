@@ -56,14 +56,24 @@ fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<Inode> {
     let file_inum = alloc_inode(typ, major, minor, nlink);
     let mut file_inode = find_inode(file_inum);
 
-    // Link this new file/directory to its parent directory
-    dirlink(&mut parent_inode, path, file_inum);
-
     /* Link '.' and '..' to this new directory inode. Since parent("..")
-     * is linked by this directory, we should update parent's inode */
+     * is linked by this directory, we should also update parent inode's
+     * nlink */
     if typ == T_DIR {
-        dirlink(&mut file_inode, ".", file_inum);
-        dirlink(&mut file_inode, "..", parent_inum);
+        if !dirlink(&mut file_inode, ".", file_inum) || !dirlink(&mut file_inode, "..", parent_inum)
+        {
+            free_inode(file_inode);
+            return None;
+        }
+    }
+
+    /* Link this new file/directory to its parent directory. Do
+     * this after dirlink() the file_inode because it can simplify
+     * the error handling flow without rolling back the change
+     * on parent inode. */
+    if !dirlink(&mut parent_inode, path, file_inum) {
+        free_inode(file_inode);
+        return None;
     }
 
     todo!("create()")
