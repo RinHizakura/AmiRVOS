@@ -23,6 +23,16 @@ pub const O_TRUNC: c_int = 0x400;
 lazy_static! {
     static ref SB: Locked<SuperBlock> = Locked::new(unsafe { MaybeUninit::zeroed().assume_init() });
 }
+
+/* The containter of Inode. It includes not only
+ * the inode instance but also other information
+ * of the inode itself, which will be useful to
+ * operate the filesystem. */
+pub struct FsInode {
+    inner: Inode,
+    inum: u32,
+}
+
 pub fn init() {
     // Block 1 is where the SuperBlock located at
     let mut buf = vec![0; BLKSZ];
@@ -49,13 +59,16 @@ fn parse_first_path<'a>(path: &'a str) -> Option<(&'a str, &'a str)> {
 }
 
 // Find the corresponding inode by inode number
-pub fn find_inode(inum: u32) -> Inode {
+pub fn find_inode(inum: u32) -> FsInode {
     let mut inodes = vec![0; BLKSZ];
     bread(iblock(&SB.lock(), inum), &inodes);
 
     /* TODO: Optimize by implementing cache for Inode, so we don't need to
      * traverse for the result every time. */
-    *block_inode(&mut inodes, inum)
+    FsInode {
+        inner: *block_inode(&mut inodes, inum),
+        inum: inum,
+    }
 }
 
 pub fn update_inode(inode: &Inode, inum: u32) {
@@ -241,7 +254,8 @@ fn writei<T>(inode: &mut Inode, mut off: usize, src: &T) -> bool {
 }
 
 // Find the directory's Inode and its number under current Inode
-pub fn dirlookup(inode: &Inode, name: &str) -> Option<(Inode, u32)> {
+pub fn dirlookup(fsinode: &FsInode, name: &str) -> Option<(FsInode, u32)> {
+    let inode = &fsinode.inner;
     assert!(inode.typ == T_DIR);
 
     for off in (0..inode.size as usize).step_by(size_of::<Dirent>()) {
@@ -264,12 +278,13 @@ pub fn dirlookup(inode: &Inode, name: &str) -> Option<(Inode, u32)> {
     None
 }
 
-pub fn dirlink(inode: &mut Inode, name: &str, inum: u32) {
+pub fn dirlink(fsinode: &mut FsInode, name: &str, inum: u32) {
     /* FIXME: Make a existing link is not expected for current
      * implementation, but we may have to error handling this in the
      * future */
-    assert!(dirlookup(inode, name).is_none());
+    assert!(dirlookup(fsinode, name).is_none());
 
+    let inode = &mut fsinode.inner;
     let mut off = 0;
     let mut dirent: Dirent = unsafe { MaybeUninit::zeroed().assume_init() };
     while off < inode.size as usize {
@@ -295,7 +310,7 @@ pub fn dirlink(inode: &mut Inode, name: &str, inum: u32) {
 }
 
 // Find the corresponding inode by the path
-pub fn path_to_inode(mut path: &str) -> Option<(Inode, u32)> {
+pub fn path_to_inode(mut path: &str) -> Option<(FsInode, u32)> {
     /* FIXME: We only support to use the absolute path which
      * starting from root now. Allow relative path in the future. */
     let mut inode;
@@ -312,7 +327,7 @@ pub fn path_to_inode(mut path: &str) -> Option<(Inode, u32)> {
         println!("{} : {}", first, path);
         /* This is not a directory, but the path requires an
          * undering file. This is not a valid path. */
-        if inode.typ != T_DIR && path != "" {
+        if inode.inner.typ != T_DIR && path != "" {
             return None;
         }
 
