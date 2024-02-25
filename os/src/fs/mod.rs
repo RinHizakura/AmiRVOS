@@ -67,15 +67,18 @@ pub fn find_inode(inum: u32) -> FsInode {
      * traverse for the result every time. */
     FsInode {
         inner: *block_inode(&mut inodes, inum),
-        inum: inum,
+        inum,
     }
 }
 
-pub fn update_inode(inode: &Inode, inum: u32) {
+pub fn update_inode(inode: &FsInode) {
     let mut inodes = vec![0; BLKSZ];
-    bread(iblock(&SB.lock(), inum), &mut inodes);
+    let inum = inode.inum;
+    bread(iblock(&SB.lock(), inum), &inodes);
 
-    todo!("update_inode()")
+    *block_inode(&mut inodes, inum) = inode.inner;
+
+    bwrite(iblock(&SB.lock(), inum), &inodes);
 }
 
 pub fn alloc_inode(typ: u16, major: u16, minor: u16, nlink: u16) -> u32 {
@@ -170,7 +173,9 @@ fn alloc_block() -> u32 {
 }
 
 // Read data from Inode
-fn readi<T>(inode: &Inode, mut off: usize, dst: &mut T) -> bool {
+fn readi<T>(fsinode: &FsInode, mut off: usize, dst: &mut T) -> bool {
+    let inode = &fsinode.inner;
+
     if off > inode.size as usize {
         return false;
     }
@@ -203,7 +208,8 @@ fn readi<T>(inode: &Inode, mut off: usize, dst: &mut T) -> bool {
 }
 
 // Write data to Inode
-fn writei<T>(inode: &mut Inode, mut off: usize, src: &T) -> bool {
+fn writei<T>(fsinode: &mut FsInode, mut off: usize, src: &T) -> bool {
+    let inode = &mut fsinode.inner;
     let size = size_of::<T>();
 
     /* The off should only < size to override data in inode,
@@ -248,7 +254,7 @@ fn writei<T>(inode: &mut Inode, mut off: usize, src: &T) -> bool {
     /* For simplicity, here we force to write back the inode to
      * disk without checking if it get modified. Note that find_block()
      * may also change the inode content. */
-    update_inode(inode, 1);
+    update_inode(fsinode);
 
     true
 }
@@ -260,7 +266,7 @@ pub fn dirlookup(fsinode: &FsInode, name: &str) -> Option<(FsInode, u32)> {
 
     for off in (0..inode.size as usize).step_by(size_of::<Dirent>()) {
         let mut dirent: Dirent = unsafe { MaybeUninit::zeroed().assume_init() };
-        if !readi(inode, off, &mut dirent) {
+        if !readi(fsinode, off, &mut dirent) {
             return None;
         }
 
@@ -284,11 +290,10 @@ pub fn dirlink(fsinode: &mut FsInode, name: &str, inum: u32) {
      * future */
     assert!(dirlookup(fsinode, name).is_none());
 
-    let inode = &mut fsinode.inner;
     let mut off = 0;
     let mut dirent: Dirent = unsafe { MaybeUninit::zeroed().assume_init() };
-    while off < inode.size as usize {
-        if !readi(inode, off, &mut dirent) {
+    while off < fsinode.inner.size as usize {
+        if !readi(fsinode, off, &mut dirent) {
             panic!("dirlink() get dirent fail");
         }
 
@@ -304,7 +309,7 @@ pub fn dirlink(fsinode: &mut FsInode, name: &str, inum: u32) {
 
     dirent.update(inum, name);
 
-    writei(inode, off, &dirent);
+    writei(fsinode, off, &dirent);
 
     todo!("dirlink()");
 }
