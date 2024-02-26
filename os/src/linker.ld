@@ -20,8 +20,12 @@ SECTIONS
         ASSERT(. - _trampoline_start == 0x1000, "error: trampoline larger than one page");
 
         . = ALIGN(0x1000);
+        _user_start = .;
         *(.text.user.main)
         *(.text.user*)
+        . = ALIGN(0x1000);
+        ASSERT(. - _user_start == 0x1000, "error: user larger than one page");
+
         *(.text .text.*)
     }
 
