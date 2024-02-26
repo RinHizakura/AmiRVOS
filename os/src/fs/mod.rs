@@ -105,8 +105,9 @@ pub fn alloc_inode(typ: u16, major: u16, minor: u16, nlink: u16) -> u32 {
     panic!("alloc_inode() fail: no empty inode");
 }
 
-pub fn free_inode(fsinode: FsInode) {
-    todo!("free_inode()");
+pub fn free_inode(mut fsinode: FsInode) {
+    fsinode.inner.set_free();
+    update_inode(&fsinode);
 }
 
 // Get the block number for the request data offset
