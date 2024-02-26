@@ -1,5 +1,4 @@
 use core::ffi::c_int;
-use core::str::from_utf8;
 
 use fs::*;
 
@@ -7,16 +6,21 @@ use crate::fs::*;
 use crate::sched;
 use crate::syscall::syscall_args;
 use crate::syscall::types::*;
+use crate::utils::cstr::*;
+
+use alloc::string::String;
+use alloc::vec;
 
 /* The private function is used by syscall handler to access
  * the current process's memory space for nul-terminated string. */
-fn fetchstr(addr: usize, buf: &mut [u8]) -> Option<usize> {
+fn fetchstr(addr: usize) -> String {
     let cur = sched::current();
     let mm = unsafe { (*cur).mm() };
-    let result = mm.copy_from_user(addr, buf);
+    let mut buf = vec![0; MAXPATH];
+    let result = mm.copy_from_user(addr, &mut buf);
     assert!(result);
 
-    buf.iter().position(|&w| w == 0)
+    buf2cstr(buf)
 }
 
 // Seperate the last path entry from the path string
@@ -69,7 +73,7 @@ fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<FsInode> {
      * this after dirlink() the file_inode because it can simplify
      * the error handling flow without rolling back the change
      * on parent inode. */
-    if !dirlink(&mut parent_inode, path, file_inum) {
+    if !dirlink(&mut parent_inode, file, file_inum) {
         free_inode(file_inode);
         return None;
     }
@@ -87,13 +91,12 @@ pub fn sys_open() -> c_int {
     let path_addr = syscall_args(0) as usize;
     let flag = syscall_args(1) as c_int;
 
-    let mut path = [0; MAXPATH];
-    let _n = fetchstr(path_addr, &mut path);
+    let path = fetchstr(path_addr);
 
     if flag & O_CREATE == O_CREATE {
         todo!("sys_open O_CREATE");
     } else {
-        let inode = path_to_inode(from_utf8(&path).expect("open path"));
+        let inode = path_to_inode(&path);
         // The file is not existing
         if inode.is_none() {
             return -1;
@@ -118,11 +121,9 @@ pub fn sys_mknod() -> c_int {
     let _mode = syscall_args(1) as mode_t;
     let dev = syscall_args(2) as dev_t;
 
-    let mut path = [0; MAXPATH];
-    let _n = fetchstr(path_addr, &mut path);
+    let path = fetchstr(path_addr);
 
-    let path = from_utf8(&path).expect("mknod path");
-    let _ = create(path, T_DEVICE, MAJOR(dev), MINOR(dev));
+    let _ = create(&path, T_DEVICE, MAJOR(dev), MINOR(dev));
 
     return 0;
 }

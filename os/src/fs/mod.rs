@@ -1,11 +1,11 @@
 use core::ffi::c_int;
 use core::mem::{size_of, MaybeUninit};
 use core::ptr;
-use core::str::from_utf8;
 
 use crate::bio::*;
 use crate::lock::Locked;
 use crate::utils::cast::*;
+use crate::utils::cstr::*;
 
 use alloc::vec;
 use fs::*;
@@ -277,7 +277,7 @@ pub fn dirlookup(fsinode: &FsInode, name: &str) -> Option<(FsInode, u32)> {
             continue;
         }
 
-        let s = from_utf8(&dirent.name).expect("from_utf8(dirent.name)");
+        let s = buf2cstr(dirent.name.to_vec());
         if name == s {
             todo!("dirlookup match");
         }
@@ -287,7 +287,7 @@ pub fn dirlookup(fsinode: &FsInode, name: &str) -> Option<(FsInode, u32)> {
 }
 
 pub fn dirlink(fsinode: &mut FsInode, name: &str, inum: u32) -> bool {
-    if dirlookup(fsinode, name).is_none() {
+    if dirlookup(fsinode, name).is_some() {
         return false;
     }
 
@@ -342,6 +342,7 @@ pub fn path_to_inode(mut path: &str) -> Option<(FsInode, u32)> {
         let next = dirlookup(&inode, first);
         if let Some(next) = next {
             (inode, inum) = next;
+            continue;
         }
         return None;
     }

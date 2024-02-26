@@ -22,6 +22,14 @@ pub extern "C" fn userinit() {
         // Open a file for stdin
         if open(path.as_ptr(), O_RDWR) < 0 {
             mknod(path.as_ptr(), 0, 0);
+            /* Open console again. Now it should be valid
+             * and become the file descriptor 0. We will
+             * take it as STDIN. */
+            let fd = open(path.as_ptr(), O_RDWR);
+            if fd != 0 {
+                /* TODO: Implement panic/assert for userspace? */
+                loop {}
+            }
         }
         loop {}
     }
