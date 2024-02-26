@@ -39,7 +39,7 @@ fn path_to_parent_file(path: &str) -> Option<(&str, &str)> {
     }
 }
 
-fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<Inode> {
+fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<FsInode> {
     let (path, file) = path_to_parent_file(path)?;
     println!("parent = {}, file = {}", path, file);
 
@@ -56,9 +56,7 @@ fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<Inode> {
     let file_inum = alloc_inode(typ, major, minor, nlink);
     let mut file_inode = find_inode(file_inum);
 
-    /* Link '.' and '..' to this new directory inode. Since parent("..")
-     * is linked by this directory, we should also update parent inode's
-     * nlink */
+    /* Link '.' and '..' to this new directory inode. */
     if typ == T_DIR {
         if !dirlink(&mut file_inode, ".", file_inum) || !dirlink(&mut file_inode, "..", parent_inum)
         {
@@ -76,7 +74,13 @@ fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<Inode> {
         return None;
     }
 
-    todo!("create()")
+    /* Since parent("..") is linked by this directory, we should
+     * also update parent inode's nlink */
+    if typ == T_DIR {
+        parent_inode.inner.nlink += 1;
+    }
+
+    Some(file_inode)
 }
 
 pub fn sys_open() -> c_int {
@@ -111,16 +115,14 @@ pub fn sys_write() -> isize {
 
 pub fn sys_mknod() -> c_int {
     let path_addr = syscall_args(0) as usize;
-    let mode = syscall_args(1) as mode_t;
+    let _mode = syscall_args(1) as mode_t;
     let dev = syscall_args(2) as dev_t;
 
     let mut path = [0; MAXPATH];
     let _n = fetchstr(path_addr, &mut path);
 
     let path = from_utf8(&path).expect("mknod path");
-    let inode = create(path, T_DEVICE, MAJOR(dev), MINOR(dev));
-
-    todo!("mknod()");
+    let _ = create(path, T_DEVICE, MAJOR(dev), MINOR(dev));
 
     return 0;
 }

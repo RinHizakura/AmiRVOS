@@ -29,8 +29,28 @@ lazy_static! {
  * of the inode itself, which will be useful to
  * operate the filesystem. */
 pub struct FsInode {
-    inner: Inode,
-    inum: u32,
+    pub inner: Inode,
+    pub inum: u32,
+}
+
+impl Drop for FsInode {
+    fn drop(&mut self) {
+        /* When this cached-on-memory inode out of its lifetime,
+         * synchronizing it back to disk.
+         *
+         * FIXME: Consider the case when we have two inode cache
+         * for the same inum, they will race and this simple
+         * synchronization will fail. */
+        let mut inodes = vec![0; BLKSZ];
+        let inum = self.inum;
+        bread(iblock(&SB.lock(), inum), &inodes);
+
+        *block_inode(&mut inodes, inum) = self.inner;
+
+        bwrite(iblock(&SB.lock(), inum), &inodes);
+
+        println!("Drop inum={}", inum);
+    }
 }
 
 pub fn init() {
@@ -60,6 +80,8 @@ fn parse_first_path<'a>(path: &'a str) -> Option<(&'a str, &'a str)> {
 
 // Find the corresponding inode by inode number
 pub fn find_inode(inum: u32) -> FsInode {
+    println!("Find inum={}", inum);
+
     let mut inodes = vec![0; BLKSZ];
     bread(iblock(&SB.lock(), inum), &inodes);
 
@@ -69,16 +91,6 @@ pub fn find_inode(inum: u32) -> FsInode {
         inner: *block_inode(&mut inodes, inum),
         inum,
     }
-}
-
-pub fn update_inode(inode: &FsInode) {
-    let mut inodes = vec![0; BLKSZ];
-    let inum = inode.inum;
-    bread(iblock(&SB.lock(), inum), &inodes);
-
-    *block_inode(&mut inodes, inum) = inode.inner;
-
-    bwrite(iblock(&SB.lock(), inum), &inodes);
 }
 
 pub fn alloc_inode(typ: u16, major: u16, minor: u16, nlink: u16) -> u32 {
@@ -107,7 +119,6 @@ pub fn alloc_inode(typ: u16, major: u16, minor: u16, nlink: u16) -> u32 {
 
 pub fn free_inode(mut fsinode: FsInode) {
     fsinode.inner.set_free();
-    update_inode(&fsinode);
 }
 
 // Get the block number for the request data offset
@@ -246,11 +257,6 @@ fn writei<T>(fsinode: &mut FsInode, mut off: usize, src: &T) -> bool {
     if off > inode.size as usize {
         inode.size = off as u32;
     }
-
-    /* For simplicity, here we force to write back the inode to
-     * disk without checking if it get modified. Note that find_block()
-     * may also change the inode content. */
-    update_inode(fsinode);
 
     true
 }
