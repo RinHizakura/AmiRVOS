@@ -12,8 +12,6 @@ pub fn timer_trap_handler() {
     let mtval = mtval::read();
     let mcause = mcause::read();
 
-    warning!("M=Interrupted: {:?}, {:X}", mcause.cause(), mtval);
-
     /* We only aim to handle timer interrupt in machine mode irq handler,
      * otherwise they are taken as invalid interrupt. */
     if !matches!(mcause.cause(), mTrap::Interrupt(mInterrupt::MachineTimer)) {
@@ -30,13 +28,6 @@ pub fn kernel_trap_handler() {
     let sstatus = cpu::r_sstatus();
     let stval = stval::read();
     let scause = scause::read();
-
-    warning!(
-        "S=Interrupted: {:?}, {:X} {:X}",
-        scause.cause(),
-        stval,
-        sepc
-    );
 
     match scause.cause() {
         sTrap::Interrupt(sInterrupt::SupervisorExternal) => plic::irq_handler(),
@@ -72,13 +63,6 @@ pub fn user_trap_handler() {
     let sepc = sepc::read();
     let stval = stval::read();
     let scause = scause::read();
-
-    warning!(
-        "U=Interrupted: {:?}, {:X} {:X}",
-        scause.cause(),
-        stval,
-        sepc
-    );
 
     unsafe {
         // Change to kernel trap handler since we're in the kernel
