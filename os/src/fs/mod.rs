@@ -50,7 +50,7 @@ impl Drop for FsInode {
 
         bwrite(iblock(&SB.lock(), inum), &inodes);
 
-        println!("Drop inum={}", inum);
+        dbg!("Release inode, inum={}", inum);
     }
 }
 
@@ -60,8 +60,6 @@ pub fn init() {
     bread(1, &mut buf);
 
     *SB.lock() = *to_struct::<SuperBlock>(&buf);
-
-    println!("nb = {:x}", SB.lock().nblocks);
 }
 
 // Seperate the first path entry from the path string
@@ -81,7 +79,7 @@ fn parse_path<'a>(path: &'a str) -> Option<(&'a str, &'a str)> {
 
 // Find the corresponding inode by inode number
 pub fn find_inode(inum: u32) -> FsInode {
-    println!("Find inum={}", inum);
+    dbg!("Get inode, inum={}", inum);
 
     let mut inodes = vec![0; BLKSZ];
     bread(iblock(&SB.lock(), inum), &inodes);
@@ -110,6 +108,7 @@ pub fn alloc_inode(typ: u16, major: u16, minor: u16, nlink: u16) -> u32 {
             if inode_ptr.is_free() {
                 inode_ptr.init(typ, major, minor, nlink);
                 bwrite(iblock, &inodes);
+                dbg!("Alloc inode, inum={}", inum);
                 return inum;
             }
         }
@@ -320,7 +319,7 @@ pub fn dirlink(fsinode: &mut FsInode, name: &str, inum: u32) -> bool {
 
 // Find the corresponding inode by the path
 pub fn path_to_inode(mut path: &str) -> Option<FsInode> {
-    info!("Traslate path {} to inode", path);
+    dbg!("Traslate path {} to inode", path);
 
     /* FIXME: We only support to use the absolute path which
      * starting from root now. Allow relative path in the future. */
@@ -333,7 +332,6 @@ pub fn path_to_inode(mut path: &str) -> Option<FsInode> {
     }
 
     while let Some((path_head, path_tail)) = parse_path(path) {
-        println!("parse_path: head={} / tail={}", path_head, path_tail);
         /* This inode is corresponded to a directory, but we want to find
          * a file under it. This is an invalid request. */
         if inode.inner.typ != T_DIR {

@@ -44,10 +44,10 @@ fn path_to_parent_file(path: &str) -> Option<(&str, &str)> {
 }
 
 fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<FsInode> {
-    let (path, file) = path_to_parent_file(path)?;
-    println!("parent = {}, file = {}", path, file);
+    let (parent, file) = path_to_parent_file(path)?;
+    dbg!("Create file {} under {}", file, parent);
 
-    let mut parent_inode = path_to_inode(path)?;
+    let mut parent_inode = path_to_inode(parent)?;
     if let Some(file_inode) = dirlookup(&parent_inode, file) {
         // The inode for the file already exists
         return Some(file_inode);

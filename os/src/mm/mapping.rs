@@ -201,14 +201,12 @@ impl Mapping {
 
         while !success && total < len {
             let va = align_down!(addr, PAGE_SIZE);
-            println!("va {:x}", va);
             let pa = self.walk(va as u64);
             // Unable to find the corresponding physical address
             if pa.is_none() {
                 break;
             }
             let pa = pa.unwrap() as usize;
-            println!("va {:x} -> pa {:x}", va, pa);
             let mut ptr = (pa + (addr - va)) as *const u8;
             let mut n = (PAGE_SIZE - (addr - va)).min(len - total);
             while n > 0 {

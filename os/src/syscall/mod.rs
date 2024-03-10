@@ -17,7 +17,7 @@ pub fn syscall_handler() {
     // a7 is the number of syscall
     let syscall_num = unsafe { (*frame).get_a(7) };
 
-    warning!("SYSCALL {}", syscall_num);
+    info!("receive SYSCALL={}", syscall_num);
 
     let result = match syscall_num {
         SYS_OPEN => proc::sys_open() as usize,

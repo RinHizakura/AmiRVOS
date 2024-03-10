@@ -28,6 +28,12 @@ macro_rules! println {
     }
 }
 
+macro_rules! dbg {
+    ($fmt: literal $(, $($arg: tt)+)?) => {
+        $crate::console::print(format_args!(concat!("\x1b[0;32m", $fmt, "\x1b[0m\n") $(, $($arg)+)?));
+    }
+}
+
 macro_rules! info {
     ($fmt: literal $(, $($arg: tt)+)?) => {
         $crate::console::print(format_args!(concat!("\x1b[1;94m", $fmt, "\x1b[0m\n") $(, $($arg)+)?));
