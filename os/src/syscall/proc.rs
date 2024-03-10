@@ -47,8 +47,8 @@ fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<FsInode> {
     let (path, file) = path_to_parent_file(path)?;
     println!("parent = {}, file = {}", path, file);
 
-    let (mut parent_inode, parent_inum) = path_to_inode(path)?;
-    if let Some((file_inode, file_inum)) = dirlookup(&parent_inode, file) {
+    let mut parent_inode = path_to_inode(path)?;
+    if let Some(file_inode) = dirlookup(&parent_inode, file) {
         // The inode for the file already exists
         todo!("create() existed file");
     }
@@ -62,7 +62,8 @@ fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<FsInode> {
 
     /* Link '.' and '..' to this new directory inode. */
     if typ == T_DIR {
-        if !dirlink(&mut file_inode, ".", file_inum) || !dirlink(&mut file_inode, "..", parent_inum)
+        if !dirlink(&mut file_inode, ".", file_inum)
+            || !dirlink(&mut file_inode, "..", parent_inode.inum)
         {
             free_inode(file_inode);
             return None;

@@ -262,7 +262,7 @@ fn writei<T>(fsinode: &mut FsInode, mut off: usize, src: &T) -> bool {
 }
 
 // Find the directory's Inode and its number under current Inode
-pub fn dirlookup(fsinode: &FsInode, name: &str) -> Option<(FsInode, u32)> {
+pub fn dirlookup(fsinode: &FsInode, name: &str) -> Option<FsInode> {
     let inode = &fsinode.inner;
     assert!(inode.typ == T_DIR);
 
@@ -279,7 +279,7 @@ pub fn dirlookup(fsinode: &FsInode, name: &str) -> Option<(FsInode, u32)> {
 
         let s = buf2cstr(dirent.name.to_vec());
         if name == s {
-            todo!("dirlookup match");
+            return Some(find_inode(dirent.inum as u32));
         }
     }
 
@@ -318,7 +318,7 @@ pub fn dirlink(fsinode: &mut FsInode, name: &str, inum: u32) -> bool {
 }
 
 // Find the corresponding inode by the path
-pub fn path_to_inode(mut path: &str) -> Option<(FsInode, u32)> {
+pub fn path_to_inode(mut path: &str) -> Option<FsInode> {
     /* FIXME: We only support to use the absolute path which
      * starting from root now. Allow relative path in the future. */
     let mut inode;
@@ -333,19 +333,19 @@ pub fn path_to_inode(mut path: &str) -> Option<(FsInode, u32)> {
 
     while let Some((first, path)) = parse_first_path(path) {
         println!("{} : {}", first, path);
-        /* This is not a directory, but the path requires an
-         * undering file. This is not a valid path. */
-        if inode.inner.typ != T_DIR && path != "" {
+        /* This inode is corresponded to a directory, but we want to find
+         * a file under it. This is an invalid request. */
+        if inode.inner.typ != T_DIR {
             return None;
         }
 
         let next = dirlookup(&inode, first);
         if let Some(next) = next {
-            (inode, inum) = next;
+            inode = next;
             continue;
         }
         return None;
     }
 
-    Some((inode, inum))
+    Some(inode)
 }
