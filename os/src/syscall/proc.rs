@@ -50,7 +50,7 @@ fn create(path: &str, typ: u16, major: u16, minor: u16) -> Option<FsInode> {
     let mut parent_inode = path_to_inode(path)?;
     if let Some(file_inode) = dirlookup(&parent_inode, file) {
         // The inode for the file already exists
-        todo!("create() existed file");
+        return Some(file_inode);
     }
 
     /* Note that nlink of directory don't cosider itself(".").

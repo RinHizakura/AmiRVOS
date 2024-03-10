@@ -28,6 +28,7 @@ lazy_static! {
  * the inode instance but also other information
  * of the inode itself, which will be useful to
  * operate the filesystem. */
+#[derive(Debug)]
 pub struct FsInode {
     pub inner: Inode,
     pub inum: u32,
@@ -64,7 +65,7 @@ pub fn init() {
 }
 
 // Seperate the first path entry from the path string
-fn parse_first_path<'a>(path: &'a str) -> Option<(&'a str, &'a str)> {
+fn parse_path<'a>(path: &'a str) -> Option<(&'a str, &'a str)> {
     // TODO: The implementation should be fixed to meet the expected result
     if path.len() == 0 {
         return None;
@@ -319,28 +320,29 @@ pub fn dirlink(fsinode: &mut FsInode, name: &str, inum: u32) -> bool {
 
 // Find the corresponding inode by the path
 pub fn path_to_inode(mut path: &str) -> Option<FsInode> {
+    info!("Traslate path {} to inode", path);
+
     /* FIXME: We only support to use the absolute path which
      * starting from root now. Allow relative path in the future. */
     let mut inode;
-    let mut inum;
     if path.chars().nth(0) == Some('/') {
         path = &path[1..];
-        inum = ROOTINO;
-        inode = find_inode(inum);
+        inode = find_inode(ROOTINO);
     } else {
         todo!("path_to_inode() not start from node");
     }
 
-    while let Some((first, path)) = parse_first_path(path) {
-        println!("{} : {}", first, path);
+    while let Some((path_head, path_tail)) = parse_path(path) {
+        println!("parse_path: head={} / tail={}", path_head, path_tail);
         /* This inode is corresponded to a directory, but we want to find
          * a file under it. This is an invalid request. */
         if inode.inner.typ != T_DIR {
             return None;
         }
 
-        let next = dirlookup(&inode, first);
+        let next = dirlookup(&inode, path_head);
         if let Some(next) = next {
+            path = path_tail;
             inode = next;
             continue;
         }
