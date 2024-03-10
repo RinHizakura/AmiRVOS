@@ -4,7 +4,6 @@ pub mod mapping;
 pub mod page;
 
 fn test() {
-    kheap::test();
     page::test();
     mapping::test();
 }

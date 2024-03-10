@@ -19,26 +19,3 @@ pub fn init() {
             .init(HEAP_SPACE.as_ptr() as usize, KERNEL_HEAP_SIZE);
     }
 }
-
-pub fn test() {
-    use alloc::boxed::Box;
-
-    HEAP_ALLOCATOR.lock().check_order();
-
-    {
-        let _a = Box::new("Everyone");
-        let _b = Box::new("know");
-        let c = Box::new("that");
-        let d = Box::new("Amita");
-        let e = Box::new("is");
-        let _f = Box::new("RinHizakura's");
-        let _g = Box::new("wife");
-
-        drop(c);
-        drop(e);
-        drop(d);
-        HEAP_ALLOCATOR.lock().check_order();
-    }
-
-    HEAP_ALLOCATOR.lock().check_order();
-}

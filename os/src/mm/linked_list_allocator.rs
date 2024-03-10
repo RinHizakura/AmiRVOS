@@ -138,15 +138,6 @@ impl LinkedListAllocator {
         None
     }
 
-    pub fn check_order(&mut self) {
-        let mut current = &mut self.head;
-        info!("\nDump the linked list allocator:");
-        while let Some(ref next) = current.next {
-            info!("addr 0x{:X} with size 0x{:X}", next.start_addr(), next.size);
-            current = current.next.as_mut().unwrap();
-        }
-    }
-
     pub fn init(&mut self, heap_start: usize, heap_size: usize) {
         self.add_free_region(heap_start, heap_size);
     }
